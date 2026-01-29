@@ -58,3 +58,33 @@ export interface User {
   email: string;
   avatar?: string;
 }
+
+export interface PromptCategory {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  projectId: string;
+  prompts?: Prompt[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Prompt {
+  id: string;
+  name: string;
+  isActive: boolean;
+  categoryId: string;
+  category?: PromptCategory;
+  versions?: PromptVersion[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PromptVersion {
+  id: string;
+  version: number;
+  content: string;
+  promptId: string;
+  createdAt: Date;
+}

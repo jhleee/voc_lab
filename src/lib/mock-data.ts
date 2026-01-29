@@ -1,4 +1,4 @@
-import type { Project, Document, ChatMessage, User } from '@/types';
+import type { Project, Document, ChatMessage, User, PromptCategory, Prompt, PromptVersion } from '@/types';
 
 export const mockUser: User = {
   id: 'user-1',
@@ -130,3 +130,159 @@ export const defaultPrompt = `당신은 친절한 고객 상담 AI 어시스턴�
 - 개인정보를 요청하지 않습니다.
 - 확실하지 않은 정보는 제공하지 않습니다.
 `;
+
+// 기본 프리셋 카테고리 정의
+export const DEFAULT_PROMPT_CATEGORIES = [
+  { name: '시스템 프롬프트', description: 'AI 어시스턴트의 기본 성격과 역할 정의' },
+  { name: '인사말', description: '대화 시작 시 사용되는 인사 메시지' },
+  { name: '에러 응답', description: '오류 발생 시 사용되는 응답 메시지' },
+  { name: '폴백 응답', description: '답변을 찾지 못했을 때 사용되는 메시지' },
+];
+
+export const mockPromptCategories: PromptCategory[] = [
+  {
+    id: 'cat-1',
+    name: '시스템 프롬프트',
+    description: 'AI 어시스턴트의 기본 성격과 역할 정의',
+    isDefault: true,
+    projectId: 'project-1',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'cat-2',
+    name: '인사말',
+    description: '대화 시작 시 사용되는 인사 메시지',
+    isDefault: true,
+    projectId: 'project-1',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'cat-3',
+    name: '에러 응답',
+    description: '오류 발생 시 사용되는 응답 메시지',
+    isDefault: true,
+    projectId: 'project-1',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'cat-4',
+    name: '폴백 응답',
+    description: '답변을 찾지 못했을 때 사용되는 메시지',
+    isDefault: true,
+    projectId: 'project-1',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+];
+
+export const mockPromptVersions: PromptVersion[] = [
+  {
+    id: 'ver-1-1',
+    version: 1,
+    content: defaultPrompt,
+    promptId: 'prompt-1',
+    createdAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'ver-1-2',
+    version: 2,
+    content: defaultPrompt + '\n- 이모지는 사용하지 않습니다.',
+    promptId: 'prompt-1',
+    createdAt: new Date('2025-01-20'),
+  },
+  {
+    id: 'ver-1-3',
+    version: 3,
+    content: defaultPrompt + '\n- 이모지는 사용하지 않습니다.\n- 응답은 300자 이내로 유지합니다.',
+    promptId: 'prompt-1',
+    createdAt: new Date('2025-01-28'),
+  },
+  {
+    id: 'ver-2-1',
+    version: 1,
+    content: '안녕하세요! 무엇을 도와드릴까요?',
+    promptId: 'prompt-2',
+    createdAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'ver-3-1',
+    version: 1,
+    content: '안녕하세요! 고객 상담 챗봇입니다. 궁금한 점이 있으시면 편하게 물어보세요.',
+    promptId: 'prompt-3',
+    createdAt: new Date('2025-01-16'),
+  },
+  {
+    id: 'ver-4-1',
+    version: 1,
+    content: '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+    promptId: 'prompt-4',
+    createdAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'ver-5-1',
+    version: 1,
+    content: '죄송합니다. 해당 질문에 대한 답변을 찾지 못했습니다. 다른 방식으로 질문해 주시거나, 상담원 연결을 원하시면 말씀해 주세요.',
+    promptId: 'prompt-5',
+    createdAt: new Date('2025-01-15'),
+  },
+];
+
+// 기본 프롬프트 데이터 (versions는 동적으로 조인)
+const basePrompts: Omit<Prompt, 'versions'>[] = [
+  {
+    id: 'prompt-1',
+    name: '기본 시스템 프롬프트',
+    isActive: true,
+    categoryId: 'cat-1',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-28'),
+  },
+  {
+    id: 'prompt-2',
+    name: '기본 인사말',
+    isActive: true,
+    categoryId: 'cat-2',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'prompt-3',
+    name: '친근한 인사말',
+    isActive: false,
+    categoryId: 'cat-2',
+    createdAt: new Date('2025-01-16'),
+    updatedAt: new Date('2025-01-16'),
+  },
+  {
+    id: 'prompt-4',
+    name: '기본 에러 응답',
+    isActive: true,
+    categoryId: 'cat-3',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'prompt-5',
+    name: '기본 폴백 응답',
+    isActive: true,
+    categoryId: 'cat-4',
+    createdAt: new Date('2025-01-15'),
+    updatedAt: new Date('2025-01-15'),
+  },
+];
+
+// 프롬프트와 버전을 동적으로 조인하는 헬퍼 함수
+export function getPromptsWithVersions(): Prompt[] {
+  return basePrompts.map(prompt => ({
+    ...prompt,
+    versions: mockPromptVersions
+      .filter(v => v.promptId === prompt.id)
+      .sort((a, b) => b.version - a.version),
+  }));
+}
+
+// 호환성을 위한 export (초기 로드 시점의 스냅샷)
+export const mockPrompts: Prompt[] = getPromptsWithVersions();
