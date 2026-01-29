@@ -1,8 +1,17 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
+// Validate DATABASE_URL environment variable
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error(
+    'DATABASE_URL environment variable is not set. ' +
+    'Please check your .env file or run: cp .env.example .env'
+  );
+}
+
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
+  connectionString: databaseUrl,
 })
 
 const globalForPrisma = global as unknown as {

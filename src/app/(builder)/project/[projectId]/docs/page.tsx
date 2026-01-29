@@ -8,10 +8,20 @@ import { mockDocuments } from '@/lib/mock-data';
 import type { Document } from '@/types';
 import { cn } from '@/lib/utils';
 
+// Allowed file extensions for upload
+const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'md'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function isValidFileExtension(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  return ext ? ALLOWED_EXTENSIONS.includes(ext) : false;
+}
+
 export default function DocsPage() {
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const filteredDocuments = documents.filter((doc) =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -35,13 +45,43 @@ export default function DocsPage() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    setUploadError(null);
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
+    // Validate files before processing
+    const invalidFiles: string[] = [];
+    const oversizedFiles: string[] = [];
+    const validFiles = files.filter((file) => {
+      if (!isValidFileExtension(file.name)) {
+        invalidFiles.push(file.name);
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        oversizedFiles.push(file.name);
+        return false;
+      }
+      return true;
+    });
+
+    // Show error messages for invalid files
+    const errors: string[] = [];
+    if (invalidFiles.length > 0) {
+      errors.push(`지원하지 않는 파일 형식: ${invalidFiles.join(', ')}`);
+    }
+    if (oversizedFiles.length > 0) {
+      errors.push(`파일 크기 초과 (최대 10MB): ${oversizedFiles.join(', ')}`);
+    }
+    if (errors.length > 0) {
+      setUploadError(errors.join('\n'));
+    }
+
+    if (validFiles.length === 0) return;
+
     // TODO: Implement actual file upload API
     // For demo, create mock documents
-    const newDocs: Document[] = files.map((file, index) => ({
+    const newDocs: Document[] = validFiles.map((file, index) => ({
       id: `doc-new-${Date.now()}-${index}`,
       title: file.name,
       content: `업로드된 파일: ${file.name}`,
@@ -72,6 +112,12 @@ export default function DocsPage() {
       <div className="mb-6 max-w-md">
         <DocsSearch value={searchQuery} onChange={setSearchQuery} />
       </div>
+
+      {uploadError && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm whitespace-pre-line">
+          {uploadError}
+        </div>
+      )}
 
       <div
         className={cn(

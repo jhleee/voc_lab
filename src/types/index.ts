@@ -2,6 +2,17 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Flow {
+  id: string;
+  name: string;
+  projectId: string;
+  nodes?: FlowNode[];
+  edges?: FlowEdge[];
   createdAt: Date;
   updatedAt: Date;
 }

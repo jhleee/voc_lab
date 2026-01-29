@@ -46,8 +46,12 @@ export function DocCard({ document, onDelete }: DocCardProps) {
   const Icon = fileTypeIcons[document.fileType];
 
   const handleDelete = () => {
-    // TODO: Implement actual document deletion with confirmation
-    if (onDelete) {
+    // Confirm before deletion
+    const confirmed = window.confirm(
+      `"${document.title}" 문서를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`
+    );
+    if (confirmed && onDelete) {
+      // TODO: Implement actual deletion API call
       onDelete(document.id);
     }
   };
@@ -93,7 +97,7 @@ export function DocCard({ document, onDelete }: DocCardProps) {
           {document.content}
         </p>
         <p className="text-xs text-muted-foreground mt-2">
-          {document.updatedAt.toLocaleDateString('ko-KR')} 수정됨
+          {new Date(document.updatedAt).toLocaleDateString('ko-KR')} 수정됨
         </p>
       </CardContent>
     </Card>

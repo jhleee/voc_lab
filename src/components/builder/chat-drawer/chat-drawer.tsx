@@ -78,7 +78,7 @@ export function ChatDrawer() {
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString('ko-KR', {
+                    {new Date(message.timestamp).toLocaleTimeString('ko-KR', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
