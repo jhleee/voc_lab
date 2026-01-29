@@ -82,6 +82,18 @@ export async function PUT(
   try {
     const { projectId } = await params;
 
+    // 프로젝트 존재 여부 확인
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found. Please run db:seed first.' },
+        { status: 404 }
+      );
+    }
+
     // 이미 카테고리가 있는지 확인
     const existingCategories = await prisma.promptCategory.findFirst({
       where: { projectId },
