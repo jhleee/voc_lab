@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { prisma } from '@/lib/prisma';
-import { mockPrompts, mockPromptCategories } from '@/lib/mock-data';
-import type { Prompt } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 // GET: 프로젝트의 모든 프롬프트 조회
 export async function GET(
@@ -13,34 +11,21 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
 
-    // TODO: Prisma로 대체
-    // const prompts = await prisma.prompt.findMany({
-    //   where: {
-    //     category: {
-    //       projectId,
-    //       ...(categoryId && { id: categoryId }),
-    //     },
-    //   },
-    //   include: {
-    //     category: true,
-    //     versions: {
-    //       orderBy: { version: 'desc' },
-    //       take: 1,
-    //     },
-    //   },
-    //   orderBy: { createdAt: 'asc' },
-    // });
-
-    // Mock 데이터 사용
-    const projectCategoryIds = mockPromptCategories
-      .filter(c => c.projectId === projectId || projectId === 'project-1')
-      .map(c => c.id);
-
-    let prompts = mockPrompts.filter(p => projectCategoryIds.includes(p.categoryId));
-
-    if (categoryId) {
-      prompts = prompts.filter(p => p.categoryId === categoryId);
-    }
+    const prompts = await prisma.prompt.findMany({
+      where: {
+        category: {
+          projectId,
+          ...(categoryId && { id: categoryId }),
+        },
+      },
+      include: {
+        category: true,
+        versions: {
+          orderBy: { version: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
 
     return NextResponse.json(prompts);
   } catch (error) {
@@ -69,27 +54,34 @@ export async function POST(
       );
     }
 
-    // TODO: Prisma로 대체
-    // Mock 응답
-    const prompt: Prompt = {
-      id: `prompt-${Date.now()}`,
-      name,
-      categoryId,
-      isActive: isActive ?? false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      versions: content
-        ? [
-            {
-              id: `ver-${Date.now()}`,
-              version: 1,
-              content,
-              promptId: `prompt-${Date.now()}`,
-              createdAt: new Date(),
-            },
-          ]
-        : [],
-    };
+    // 같은 카테고리에 활성화된 프롬프트가 있으면 비활성화
+    if (isActive) {
+      await prisma.prompt.updateMany({
+        where: { categoryId, isActive: true },
+        data: { isActive: false },
+      });
+    }
+
+    const prompt = await prisma.prompt.create({
+      data: {
+        name,
+        categoryId,
+        isActive: isActive ?? false,
+        versions: content
+          ? {
+              create: {
+                version: 1,
+                content,
+              },
+            }
+          : undefined,
+      },
+      include: {
+        versions: {
+          orderBy: { version: 'desc' },
+        },
+      },
+    });
 
     return NextResponse.json(prompt, { status: 201 });
   } catch (error) {

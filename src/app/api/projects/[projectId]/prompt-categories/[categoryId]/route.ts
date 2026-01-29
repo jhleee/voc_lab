@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { prisma } from '@/lib/prisma';
-import { mockPromptCategories, mockPrompts } from '@/lib/mock-data';
-import type { PromptCategory } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 // GET: 특정 카테고리 조회
 export async function GET(
@@ -11,23 +9,19 @@ export async function GET(
   try {
     const { categoryId } = await params;
 
-    // TODO: Prisma로 대체
-    // const category = await prisma.promptCategory.findUnique({
-    //   where: { id: categoryId },
-    //   include: {
-    //     prompts: {
-    //       include: {
-    //         versions: {
-    //           orderBy: { version: 'desc' },
-    //         },
-    //       },
-    //       orderBy: { createdAt: 'asc' },
-    //     },
-    //   },
-    // });
-
-    // Mock 데이터 사용
-    const category = mockPromptCategories.find(c => c.id === categoryId);
+    const category = await prisma.promptCategory.findUnique({
+      where: { id: categoryId },
+      include: {
+        prompts: {
+          include: {
+            versions: {
+              orderBy: { version: 'desc' },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
 
     if (!category) {
       return NextResponse.json(
@@ -36,12 +30,7 @@ export async function GET(
       );
     }
 
-    const categoryWithPrompts: PromptCategory = {
-      ...category,
-      prompts: mockPrompts.filter(p => p.categoryId === categoryId),
-    };
-
-    return NextResponse.json(categoryWithPrompts);
+    return NextResponse.json(category);
   } catch (error) {
     console.error('Failed to fetch prompt category:', error);
     return NextResponse.json(
@@ -61,30 +50,16 @@ export async function PATCH(
     const body = await request.json();
     const { name, description } = body;
 
-    // TODO: Prisma로 대체
-    // const category = await prisma.promptCategory.update({
-    //   where: { id: categoryId },
-    //   data: {
-    //     ...(name && { name }),
-    //     ...(description !== undefined && { description }),
-    //   },
-    // });
-
-    // Mock 응답
-    const existingCategory = mockPromptCategories.find(c => c.id === categoryId);
-    if (!existingCategory) {
-      return NextResponse.json(
-        { error: 'Category not found' },
-        { status: 404 }
-      );
-    }
-
-    const category: PromptCategory = {
-      ...existingCategory,
-      ...(name && { name }),
-      ...(description !== undefined && { description }),
-      updatedAt: new Date(),
-    };
+    const category = await prisma.promptCategory.update({
+      where: { id: categoryId },
+      data: {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+      },
+      include: {
+        prompts: true,
+      },
+    });
 
     return NextResponse.json(category);
   } catch (error) {
@@ -104,19 +79,9 @@ export async function DELETE(
   try {
     const { categoryId } = await params;
 
-    // TODO: Prisma로 대체
-    // await prisma.promptCategory.delete({
-    //   where: { id: categoryId },
-    // });
-
-    // Mock 응답
-    const category = mockPromptCategories.find(c => c.id === categoryId);
-    if (!category) {
-      return NextResponse.json(
-        { error: 'Category not found' },
-        { status: 404 }
-      );
-    }
+    await prisma.promptCategory.delete({
+      where: { id: categoryId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

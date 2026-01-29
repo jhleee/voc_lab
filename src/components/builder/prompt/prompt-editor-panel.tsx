@@ -15,7 +15,7 @@ interface PromptEditorPanelProps {
   projectId: string;
 }
 
-export function PromptEditorPanel({ projectId: _projectId }: PromptEditorPanelProps) {
+export function PromptEditorPanel({ projectId }: PromptEditorPanelProps) {
   const {
     selectedPromptId,
     currentContent,
@@ -30,9 +30,6 @@ export function PromptEditorPanel({ projectId: _projectId }: PromptEditorPanelPr
     setPromptActive,
   } = usePromptStore();
 
-  // projectId will be used when API integration is complete
-  void _projectId;
-
   const prompt = getSelectedPrompt();
   const version = getSelectedVersion();
 
@@ -41,53 +38,79 @@ export function PromptEditorPanel({ projectId: _projectId }: PromptEditorPanelPr
 
     setIsSaving(true);
     try {
-      // TODO: API 호출로 대체
-      // const response = await fetch(
-      //   `/api/projects/${projectId}/prompts/${prompt.id}/versions`,
-      //   {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ content: currentContent }),
-      //   }
-      // );
-      // const newVersion = await response.json();
+      const response = await fetch(
+        `/api/projects/${projectId}/prompts/${prompt.id}/versions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: currentContent }),
+        }
+      );
 
-      // Mock 버전 생성
+      if (!response.ok) throw new Error('Failed to save prompt version');
+
+      const newVersion: PromptVersion = await response.json();
+
+      // 새 버전이 생성된 경우에만 스토어 업데이트 (동일 내용이면 기존 버전 반환)
       const latestVersion = prompt.versions?.[0];
-      const newVersionNumber = latestVersion ? latestVersion.version + 1 : 1;
-
-      // 내용이 동일하면 새 버전 생성하지 않음
-      if (latestVersion && latestVersion.content === currentContent) {
-        return;
+      if (!latestVersion || latestVersion.id !== newVersion.id) {
+        addVersion(prompt.id, newVersion);
       }
-
-      const newVersion: PromptVersion = {
-        id: `ver-${Date.now()}`,
-        version: newVersionNumber,
-        content: currentContent,
-        promptId: prompt.id,
-        createdAt: new Date(),
-      };
-
-      addVersion(prompt.id, newVersion);
     } catch (error) {
       console.error('Failed to save prompt:', error);
+      alert('프롬프트 저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
-  }, [prompt, currentContent, addVersion, setIsSaving]);
+  }, [prompt, currentContent, projectId, addVersion, setIsSaving]);
 
   const handleRevert = useCallback(() => {
     if (!version) return;
     setCurrentContent(version.content);
   }, [version, setCurrentContent]);
 
-  const handleToggleActive = useCallback(() => {
-    if (!prompt) return;
-    if (!prompt.isActive) {
-      setPromptActive(prompt.id, prompt.categoryId);
+  const handleNameChange = useCallback(async (newName: string) => {
+    if (!prompt || !newName.trim()) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/prompts/${prompt.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to update prompt name');
+
+      updatePrompt(prompt.id, { name: newName });
+    } catch (error) {
+      console.error('Failed to update prompt name:', error);
     }
-  }, [prompt, setPromptActive]);
+  }, [prompt, projectId, updatePrompt]);
+
+  const handleToggleActive = useCallback(async () => {
+    if (!prompt || prompt.isActive) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/prompts/${prompt.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to activate prompt');
+
+      setPromptActive(prompt.id, prompt.categoryId);
+    } catch (error) {
+      console.error('Failed to activate prompt:', error);
+      alert('프롬프트 활성화에 실패했습니다.');
+    }
+  }, [prompt, projectId, setPromptActive]);
 
   if (!selectedPromptId || !prompt) {
     return (
@@ -114,6 +137,7 @@ export function PromptEditorPanel({ projectId: _projectId }: PromptEditorPanelPr
               id="prompt-name"
               value={prompt.name}
               onChange={(e) => updatePrompt(prompt.id, { name: e.target.value })}
+              onBlur={(e) => handleNameChange(e.target.value)}
               className="text-lg font-semibold h-10"
             />
           </div>

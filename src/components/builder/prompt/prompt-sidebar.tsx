@@ -7,6 +7,7 @@ import {
   MoreVertical,
   Trash2,
   FolderOpen,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,11 +27,6 @@ import { usePromptStore } from '@/hooks/use-prompt-store';
 import { cn } from '@/lib/utils';
 import type { PromptCategory, Prompt } from '@/types';
 
-// ID 생성 헬퍼 함수 (렌더링 외부에서 호출)
-function generateId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
 interface PromptSidebarProps {
   projectId: string;
 }
@@ -45,6 +41,7 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
     addPrompt,
     deletePrompt,
     setPromptActive,
+    updatePrompt,
   } = usePromptStore();
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -54,6 +51,7 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingPromptToCategory, setAddingPromptToCategory] = useState<string | null>(null);
   const [newPromptName, setNewPromptName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -67,69 +65,126 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
     });
   };
 
-  const handleAddCategory = useCallback(() => {
-    if (!newCategoryName.trim()) return;
+  const handleAddCategory = useCallback(async () => {
+    if (!newCategoryName.trim() || isLoading) return;
 
-    const now = new Date();
-    const newCategory: PromptCategory = {
-      id: generateId('cat'),
-      name: newCategoryName.trim(),
-      isDefault: false,
-      projectId,
-      createdAt: now,
-      updatedAt: now,
-      prompts: [],
-    };
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/prompt-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategoryName.trim() }),
+      });
 
-    addCategory(newCategory);
-    setExpandedCategories(prev => new Set([...prev, newCategory.id]));
-    setNewCategoryName('');
-    setIsAddingCategory(false);
-  }, [newCategoryName, projectId, addCategory]);
+      if (!response.ok) throw new Error('Failed to create category');
 
-  const handleDeleteCategory = (categoryId: string) => {
+      const newCategory: PromptCategory = await response.json();
+      addCategory(newCategory);
+      setExpandedCategories(prev => new Set([...prev, newCategory.id]));
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+    } catch (error) {
+      console.error('Failed to create category:', error);
+      alert('카테고리 생성에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [newCategoryName, projectId, addCategory, isLoading]);
+
+  const handleDeleteCategory = useCallback(async (categoryId: string) => {
     const confirmed = window.confirm(
       '이 카테고리와 포함된 모든 프롬프트가 삭제됩니다. 계속하시겠습니까?'
     );
-    if (confirmed) {
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/prompt-categories/${categoryId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) throw new Error('Failed to delete category');
       deleteCategory(categoryId);
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      alert('카테고리 삭제에 실패했습니다.');
     }
-  };
+  }, [projectId, deleteCategory]);
 
-  const handleAddPrompt = useCallback((categoryId: string) => {
-    if (!newPromptName.trim()) return;
+  const handleAddPrompt = useCallback(async (categoryId: string) => {
+    if (!newPromptName.trim() || isLoading) return;
 
-    const now = new Date();
-    const newPrompt: Prompt = {
-      id: generateId('prompt'),
-      name: newPromptName.trim(),
-      isActive: false,
-      categoryId,
-      createdAt: now,
-      updatedAt: now,
-      versions: [],
-    };
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/prompts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newPromptName.trim(),
+          categoryId,
+        }),
+      });
 
-    addPrompt(newPrompt);
-    selectPrompt(newPrompt.id);
-    setNewPromptName('');
-    setAddingPromptToCategory(null);
-  }, [newPromptName, addPrompt, selectPrompt]);
+      if (!response.ok) throw new Error('Failed to create prompt');
 
-  const handleDeletePrompt = (promptId: string, promptName: string) => {
+      const newPrompt: Prompt = await response.json();
+      addPrompt(newPrompt);
+      selectPrompt(newPrompt.id);
+      setNewPromptName('');
+      setAddingPromptToCategory(null);
+    } catch (error) {
+      console.error('Failed to create prompt:', error);
+      alert('프롬프트 생성에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [newPromptName, projectId, addPrompt, selectPrompt, isLoading]);
+
+  const handleDeletePrompt = useCallback(async (promptId: string, promptName: string) => {
     const confirmed = window.confirm(
       `"${promptName}" 프롬프트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`
     );
-    if (confirmed) {
-      deletePrompt(promptId);
-    }
-  };
+    if (!confirmed) return;
 
-  const handleToggleActive = (prompt: Prompt) => {
-    if (!prompt.isActive) {
-      setPromptActive(prompt.id, prompt.categoryId);
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/prompts/${promptId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) throw new Error('Failed to delete prompt');
+      deletePrompt(promptId);
+    } catch (error) {
+      console.error('Failed to delete prompt:', error);
+      alert('프롬프트 삭제에 실패했습니다.');
     }
-  };
+  }, [projectId, deletePrompt]);
+
+  const handleToggleActive = useCallback(async (prompt: Prompt) => {
+    if (prompt.isActive) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/prompts/${prompt.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to update prompt');
+
+      setPromptActive(prompt.id, prompt.categoryId);
+
+      // 업데이트된 프롬프트 데이터 적용
+      const updatedPrompt: Prompt = await response.json();
+      updatePrompt(prompt.id, updatedPrompt);
+    } catch (error) {
+      console.error('Failed to activate prompt:', error);
+      alert('프롬프트 활성화에 실패했습니다.');
+    }
+  }, [projectId, setPromptActive, updatePrompt]);
 
   return (
     <div className="w-[280px] border-r flex flex-col bg-muted/30">
@@ -141,6 +196,7 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
             size="icon"
             className="h-8 w-8"
             onClick={() => setIsAddingCategory(true)}
+            disabled={isLoading}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -164,10 +220,16 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
                   }
                 }}
                 className="h-8 text-sm"
+                disabled={isLoading}
               />
               <div className="flex gap-1 mt-2">
-                <Button size="sm" className="h-7 text-xs flex-1" onClick={handleAddCategory}>
-                  추가
+                <Button
+                  size="sm"
+                  className="h-7 text-xs flex-1"
+                  onClick={handleAddCategory}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : '추가'}
                 </Button>
                 <Button
                   size="sm"
@@ -177,6 +239,7 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
                     setIsAddingCategory(false);
                     setNewCategoryName('');
                   }}
+                  disabled={isLoading}
                 >
                   취소
                 </Button>
@@ -204,6 +267,7 @@ export function PromptSidebar({ projectId }: PromptSidebarProps) {
               newPromptName={newPromptName}
               onNewPromptNameChange={setNewPromptName}
               onAddPrompt={() => handleAddPrompt(category.id)}
+              isLoading={isLoading}
             />
           ))}
 
@@ -241,6 +305,7 @@ interface CategoryItemProps {
   newPromptName: string;
   onNewPromptNameChange: (name: string) => void;
   onAddPrompt: () => void;
+  isLoading: boolean;
 }
 
 function CategoryItem({
@@ -258,6 +323,7 @@ function CategoryItem({
   newPromptName,
   onNewPromptNameChange,
   onAddPrompt,
+  isLoading,
 }: CategoryItemProps) {
   const prompts = category.prompts || [];
 
@@ -329,16 +395,23 @@ function CategoryItem({
                   if (e.key === 'Escape') onCancelAddPrompt();
                 }}
                 className="h-8 text-sm"
+                disabled={isLoading}
               />
               <div className="flex gap-1 mt-2">
-                <Button size="sm" className="h-7 text-xs flex-1" onClick={onAddPrompt}>
-                  추가
+                <Button
+                  size="sm"
+                  className="h-7 text-xs flex-1"
+                  onClick={onAddPrompt}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : '추가'}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs flex-1"
                   onClick={onCancelAddPrompt}
+                  disabled={isLoading}
                 >
                   취소
                 </Button>

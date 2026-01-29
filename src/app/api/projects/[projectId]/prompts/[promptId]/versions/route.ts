@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { prisma } from '@/lib/prisma';
-import { mockPrompts, mockPromptVersions } from '@/lib/mock-data';
-import type { PromptVersion } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 // GET: 프롬프트의 모든 버전 조회
 export async function GET(
@@ -11,16 +9,10 @@ export async function GET(
   try {
     const { promptId } = await params;
 
-    // TODO: Prisma로 대체
-    // const versions = await prisma.promptVersion.findMany({
-    //   where: { promptId },
-    //   orderBy: { version: 'desc' },
-    // });
-
-    // Mock 데이터 사용
-    const versions = mockPromptVersions
-      .filter(v => v.promptId === promptId)
-      .sort((a, b) => b.version - a.version);
+    const versions = await prisma.promptVersion.findMany({
+      where: { promptId },
+      orderBy: { version: 'desc' },
+    });
 
     return NextResponse.json(versions);
   } catch (error) {
@@ -49,36 +41,32 @@ export async function POST(
       );
     }
 
-    // TODO: Prisma로 대체
-    // Mock 데이터 사용
-    const prompt = mockPrompts.find(p => p.id === promptId);
-    if (!prompt) {
-      return NextResponse.json(
-        { error: 'Prompt not found' },
-        { status: 404 }
-      );
-    }
-
-    const promptVersions = mockPromptVersions
-      .filter(v => v.promptId === promptId)
-      .sort((a, b) => b.version - a.version);
-
-    const latestVersion = promptVersions[0];
+    // 가장 최근 버전 조회
+    const latestVersion = await prisma.promptVersion.findFirst({
+      where: { promptId },
+      orderBy: { version: 'desc' },
+    });
 
     // 내용이 동일하면 새 버전 생성하지 않음
     if (latestVersion && latestVersion.content === content) {
       return NextResponse.json(latestVersion);
     }
 
-    const newVersionNumber = latestVersion ? latestVersion.version + 1 : 1;
+    const newVersion = latestVersion ? latestVersion.version + 1 : 1;
 
-    const version: PromptVersion = {
-      id: `ver-${Date.now()}`,
-      version: newVersionNumber,
-      content,
-      promptId,
-      createdAt: new Date(),
-    };
+    const version = await prisma.promptVersion.create({
+      data: {
+        version: newVersion,
+        content,
+        promptId,
+      },
+    });
+
+    // 프롬프트의 updatedAt 갱신
+    await prisma.prompt.update({
+      where: { id: promptId },
+      data: { updatedAt: new Date() },
+    });
 
     return NextResponse.json(version, { status: 201 });
   } catch (error) {

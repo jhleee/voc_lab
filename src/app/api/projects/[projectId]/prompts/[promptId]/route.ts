@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { prisma } from '@/lib/prisma';
-import { mockPrompts } from '@/lib/mock-data';
-import type { Prompt } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 // GET: 특정 프롬프트 조회
 export async function GET(
@@ -11,19 +9,15 @@ export async function GET(
   try {
     const { promptId } = await params;
 
-    // TODO: Prisma로 대체
-    // const prompt = await prisma.prompt.findUnique({
-    //   where: { id: promptId },
-    //   include: {
-    //     category: true,
-    //     versions: {
-    //       orderBy: { version: 'desc' },
-    //     },
-    //   },
-    // });
-
-    // Mock 데이터 사용
-    const prompt = mockPrompts.find(p => p.id === promptId);
+    const prompt = await prisma.prompt.findUnique({
+      where: { id: promptId },
+      include: {
+        category: true,
+        versions: {
+          orderBy: { version: 'desc' },
+        },
+      },
+    });
 
     if (!prompt) {
       return NextResponse.json(
@@ -52,22 +46,37 @@ export async function PATCH(
     const body = await request.json();
     const { name, isActive } = body;
 
-    // TODO: Prisma로 대체
-    // Mock 응답
-    const existingPrompt = mockPrompts.find(p => p.id === promptId);
-    if (!existingPrompt) {
-      return NextResponse.json(
-        { error: 'Prompt not found' },
-        { status: 404 }
-      );
+    // 활성화 상태 변경 시 같은 카테고리 내 다른 프롬프트 비활성화
+    if (isActive === true) {
+      const prompt = await prisma.prompt.findUnique({
+        where: { id: promptId },
+        select: { categoryId: true },
+      });
+
+      if (prompt) {
+        await prisma.prompt.updateMany({
+          where: {
+            categoryId: prompt.categoryId,
+            isActive: true,
+            id: { not: promptId },
+          },
+          data: { isActive: false },
+        });
+      }
     }
 
-    const updatedPrompt: Prompt = {
-      ...existingPrompt,
-      ...(name && { name }),
-      ...(isActive !== undefined && { isActive }),
-      updatedAt: new Date(),
-    };
+    const updatedPrompt = await prisma.prompt.update({
+      where: { id: promptId },
+      data: {
+        ...(name && { name }),
+        ...(isActive !== undefined && { isActive }),
+      },
+      include: {
+        versions: {
+          orderBy: { version: 'desc' },
+        },
+      },
+    });
 
     return NextResponse.json(updatedPrompt);
   } catch (error) {
@@ -87,15 +96,9 @@ export async function DELETE(
   try {
     const { promptId } = await params;
 
-    // TODO: Prisma로 대체
-    // Mock 응답
-    const prompt = mockPrompts.find(p => p.id === promptId);
-    if (!prompt) {
-      return NextResponse.json(
-        { error: 'Prompt not found' },
-        { status: 404 }
-      );
-    }
+    await prisma.prompt.delete({
+      where: { id: promptId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

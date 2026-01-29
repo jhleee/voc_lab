@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { prisma } from '@/lib/prisma';
-import { DEFAULT_PROMPT_CATEGORIES, mockPromptCategories, mockPrompts } from '@/lib/mock-data';
-import type { PromptCategory } from '@/types';
+import { prisma } from '@/lib/prisma';
+import { DEFAULT_PROMPT_CATEGORIES } from '@/lib/mock-data';
 
 // GET: 프로젝트의 모든 프롬프트 카테고리 조회
 export async function GET(
@@ -11,30 +10,20 @@ export async function GET(
   try {
     const { projectId } = await params;
 
-    // TODO: Prisma로 대체
-    // const categories = await prisma.promptCategory.findMany({
-    //   where: { projectId },
-    //   include: {
-    //     prompts: {
-    //       include: {
-    //         versions: {
-    //           orderBy: { version: 'desc' },
-    //           take: 1,
-    //         },
-    //       },
-    //       orderBy: { createdAt: 'asc' },
-    //     },
-    //   },
-    //   orderBy: { createdAt: 'asc' },
-    // });
-
-    // Mock 데이터 사용
-    const categories: PromptCategory[] = mockPromptCategories
-      .filter(c => c.projectId === projectId || projectId === 'project-1')
-      .map(cat => ({
-        ...cat,
-        prompts: mockPrompts.filter(p => p.categoryId === cat.id),
-      }));
+    const categories = await prisma.promptCategory.findMany({
+      where: { projectId },
+      include: {
+        prompts: {
+          include: {
+            versions: {
+              orderBy: { version: 'desc' },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
 
     return NextResponse.json(categories);
   } catch (error) {
@@ -63,26 +52,17 @@ export async function POST(
       );
     }
 
-    // TODO: Prisma로 대체
-    // const category = await prisma.promptCategory.create({
-    //   data: {
-    //     name,
-    //     description,
-    //     isDefault: false,
-    //     projectId,
-    //   },
-    // });
-
-    // Mock 응답
-    const category: PromptCategory = {
-      id: `cat-${Date.now()}`,
-      name,
-      description,
-      isDefault: false,
-      projectId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const category = await prisma.promptCategory.create({
+      data: {
+        name,
+        description,
+        isDefault: false,
+        projectId,
+      },
+      include: {
+        prompts: true,
+      },
+    });
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {
@@ -94,7 +74,7 @@ export async function POST(
   }
 }
 
-// 프로젝트에 기본 카테고리 초기화 (별도 엔드포인트로 호출)
+// PUT: 프로젝트에 기본 카테고리 초기화
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -102,17 +82,34 @@ export async function PUT(
   try {
     const { projectId } = await params;
 
-    // TODO: Prisma로 대체
-    // Mock: 기본 프리셋 카테고리 반환
-    const categories: PromptCategory[] = DEFAULT_PROMPT_CATEGORIES.map((cat, index) => ({
-      id: `cat-init-${index}`,
-      name: cat.name,
-      description: cat.description,
-      isDefault: true,
-      projectId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    // 이미 카테고리가 있는지 확인
+    const existingCategories = await prisma.promptCategory.findFirst({
+      where: { projectId },
+    });
+
+    if (existingCategories) {
+      return NextResponse.json(
+        { message: 'Categories already initialized' },
+        { status: 200 }
+      );
+    }
+
+    // 기본 프리셋 카테고리 생성
+    const categories = await prisma.$transaction(
+      DEFAULT_PROMPT_CATEGORIES.map((cat) =>
+        prisma.promptCategory.create({
+          data: {
+            name: cat.name,
+            description: cat.description,
+            isDefault: true,
+            projectId,
+          },
+          include: {
+            prompts: true,
+          },
+        })
+      )
+    );
 
     return NextResponse.json(categories, { status: 201 });
   } catch (error) {
