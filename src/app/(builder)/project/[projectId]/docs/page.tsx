@@ -81,8 +81,8 @@ export default function DocsPage() {
 
     // TODO: Implement actual file upload API
     // For demo, create mock documents
-    const newDocs: Document[] = validFiles.map((file, index) => ({
-      id: `doc-new-${Date.now()}-${index}`,
+    const newDocs: Document[] = validFiles.map((file) => ({
+      id: crypto.randomUUID(),
       title: file.name,
       content: `업로드된 파일: ${file.name}`,
       fileType: getFileType(file.name),

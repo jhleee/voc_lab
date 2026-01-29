@@ -6,6 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FileType {
+  pdf
+  doc
+  txt
+  md
+}
+
+enum NodeType {
+  start
+  message
+  condition
+  action
+}
+
 model User {
   id        String    @id @default(cuid())
   name      String
@@ -32,7 +46,7 @@ model Document {
   id        String   @id @default(cuid())
   title     String
   content   String   @db.Text
-  fileType  String   // 'pdf' | 'doc' | 'txt' | 'md'
+  fileType  FileType
   fileSize  Int
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -52,14 +66,14 @@ model Flow {
 }
 
 model FlowNode {
-  id       String  @id @default(cuid())
-  type     String  // 'start' | 'message' | 'condition' | 'action'
+  id       String   @id @default(cuid())
+  type     NodeType
   posX     Float
   posY     Float
   label    String
   content  String?
   flowId   String
-  flow     Flow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  flow     Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
 }
 
 model FlowEdge {
