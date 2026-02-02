@@ -46,6 +46,8 @@ export interface FlowState {
   projectId: string | null;
   flowId: string | null;
   flowName: string;
+  flowVersion: number;
+  isPublished: boolean;
   nodes: Node<FlowNodeData>[];
   edges: Edge[];
   variables: FlowVariables;
@@ -68,10 +70,14 @@ export interface FlowState {
     projectId: string;
     flowId: string;
     flowName: string;
+    flowVersion?: number;
+    isPublished?: boolean;
     nodes: Node<FlowNodeData>[];
     edges: Edge[];
   }) => void;
   setFlowName: (name: string) => void;
+  publishFlow: () => Promise<void>;
+  unpublishFlow: () => Promise<void>;
 
   // ---------------------------------------------------------------------------
   // Node Actions
@@ -154,6 +160,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   projectId: null,
   flowId: null,
   flowName: '',
+  flowVersion: 1,
+  isPublished: false,
   nodes: [],
   edges: [],
   variables: DEFAULT_FLOW_VARIABLES,
@@ -168,7 +176,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   // ---------------------------------------------------------------------------
   // Flow Actions
   // ---------------------------------------------------------------------------
-  initializeFlow: ({ projectId, flowId, flowName, nodes, edges }) => {
+  initializeFlow: ({ projectId, flowId, flowName, flowVersion, isPublished, nodes, edges }) => {
     // 이전 자동 저장 취소
     autoSaveManager?.cancel();
 
@@ -193,6 +201,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       projectId,
       flowId,
       flowName,
+      flowVersion: flowVersion ?? 1,
+      isPublished: isPublished ?? false,
       nodes,
       edges,
       isDirty: false,
@@ -212,6 +222,56 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   setFlowName: (name) => {
     set({ flowName: name });
     get().markDirty();
+  },
+
+  publishFlow: async () => {
+    const state = get();
+    if (!state.flowId || !state.projectId) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${state.projectId}/flows/${state.flowId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPublished: true }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to publish flow');
+      }
+
+      set({ isPublished: true });
+    } catch (error) {
+      console.error('Failed to publish flow:', error);
+      throw error;
+    }
+  },
+
+  unpublishFlow: async () => {
+    const state = get();
+    if (!state.flowId || !state.projectId) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${state.projectId}/flows/${state.flowId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPublished: false }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to unpublish flow');
+      }
+
+      set({ isPublished: false });
+    } catch (error) {
+      console.error('Failed to unpublish flow:', error);
+      throw error;
+    }
   },
 
   // ---------------------------------------------------------------------------
@@ -505,6 +565,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         projectId,
         flowId: flow.id,
         flowName: flow.name,
+        flowVersion: flow.version,
+        isPublished: flow.isPublished,
         nodes: flow.nodes,
         edges: flow.edges,
       });
@@ -530,6 +592,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       projectId: null,
       flowId: null,
       flowName: '',
+      flowVersion: 1,
+      isPublished: false,
       nodes: [],
       edges: [],
       variables: DEFAULT_FLOW_VARIABLES,

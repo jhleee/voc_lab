@@ -32,7 +32,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // ReactFlow 형식으로 변환
     const formattedFlow = {
-      ...flow,
+      id: flow.id,
+      name: flow.name,
+      description: flow.description,
+      version: flow.version,
+      isPublished: flow.isPublished,
+      projectId: flow.projectId,
+      createdAt: flow.createdAt,
+      updatedAt: flow.updatedAt,
       nodes: flow.nodes.map((node) => ({
         id: node.nodeId,
         type: node.type,
@@ -163,6 +170,54 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     console.error('Failed to update flow:', error);
     return NextResponse.json(
       { error: 'Failed to update flow' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: 플로우 배포 상태 변경
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { projectId, flowId } = await params;
+    const body = await request.json();
+    const { isPublished } = body;
+
+    if (typeof isPublished !== 'boolean') {
+      return NextResponse.json(
+        { error: 'isPublished must be a boolean' },
+        { status: 400 }
+      );
+    }
+
+    // 플로우 존재 확인
+    const existingFlow = await prisma.flow.findFirst({
+      where: { id: flowId, projectId },
+    });
+
+    if (!existingFlow) {
+      return NextResponse.json(
+        { error: 'Flow not found' },
+        { status: 404 }
+      );
+    }
+
+    // 배포 상태 업데이트
+    const updatedFlow = await prisma.flow.update({
+      where: { id: flowId },
+      data: { isPublished },
+    });
+
+    return NextResponse.json({
+      id: updatedFlow.id,
+      name: updatedFlow.name,
+      version: updatedFlow.version,
+      isPublished: updatedFlow.isPublished,
+      message: isPublished ? 'Flow published successfully' : 'Flow unpublished',
+    });
+  } catch (error) {
+    console.error('Failed to update flow publish status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update flow publish status' },
       { status: 500 }
     );
   }

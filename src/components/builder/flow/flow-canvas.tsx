@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react';
 import type { Connection, NodeChange, EdgeChange, Node, Edge, IsValidConnection } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Plus } from 'lucide-react';
+import { Plus, Rocket, CloudOff } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { nodeTypes } from './nodes';
 import { NodeSettingsPanel } from './node-settings-panel';
 import { ValidationPanel } from './validation-panel';
@@ -72,6 +73,8 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     nodes,
     edges,
     flowId,
+    flowVersion,
+    isPublished,
     isLoading,
     isSaving,
     isDirty,
@@ -82,7 +85,11 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     selectNode,
     initializeFlow,
     loadFlow,
+    publishFlow,
+    unpublishFlow,
   } = useFlowStore();
+
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const { open: openSettings } = useNodeSettings();
 
@@ -202,6 +209,26 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     selectNode(null);
   }, [selectNode]);
 
+  // Handle publish/unpublish
+  const handlePublishToggle = async () => {
+    if (isDirty) {
+      alert('변경사항을 저장한 후 배포해주세요.');
+      return;
+    }
+    setIsPublishing(true);
+    try {
+      if (isPublished) {
+        await unpublishFlow();
+      } else {
+        await publishFlow();
+      }
+    } catch {
+      alert('배포 상태 변경에 실패했습니다.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const categories = getNodesByCategory();
 
   // Loading state
@@ -272,6 +299,20 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
         {/* Status Panel */}
         <Panel position="top-right" className="m-4">
           <div className="bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border text-sm flex items-center gap-3">
+            {/* Version Badge */}
+            <Badge variant="outline" className="text-xs">
+              v{flowVersion}
+            </Badge>
+
+            {/* Publish Status */}
+            <Badge
+              variant={isPublished ? "default" : "secondary"}
+              className={isPublished ? "bg-green-500/10 text-green-600 border-green-200" : ""}
+            >
+              {isPublished ? '배포됨' : '미배포'}
+            </Badge>
+
+            <span className="text-muted-foreground">|</span>
             <span className="text-muted-foreground">
               노드: {nodes.length} | 연결: {edges.length}
             </span>
@@ -285,6 +326,30 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
             ) : (
               <span className="text-green-500">✓ 저장됨</span>
             )}
+            <span className="text-muted-foreground">|</span>
+
+            {/* Publish Button */}
+            <Button
+              size="sm"
+              variant={isPublished ? "outline" : "default"}
+              onClick={handlePublishToggle}
+              disabled={isPublishing || isDirty}
+              className="h-7"
+            >
+              {isPublishing ? (
+                <span className="animate-spin">⟳</span>
+              ) : isPublished ? (
+                <>
+                  <CloudOff className="h-4 w-4 mr-1" />
+                  배포 취소
+                </>
+              ) : (
+                <>
+                  <Rocket className="h-4 w-4 mr-1" />
+                  배포
+                </>
+              )}
+            </Button>
           </div>
         </Panel>
 
