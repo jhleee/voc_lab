@@ -77,17 +77,21 @@ export class FlowEngine {
   // ---------------------------------------------------------------------------
 
   async startSession(projectId: string): Promise<Session> {
+    console.log('[FlowEngine] startSession called', { projectId, flowId: this.flow.id });
     // Find start node
     const startNode = this.flow.nodes.find((n) => n.type === 'start');
     if (!startNode) {
+      console.error('[FlowEngine] No start node found');
       throw new Error('Flow has no start node');
     }
+    console.log('[FlowEngine] Start node found:', startNode.id);
 
     const session = await this.sessionStore.create({
       projectId,
       flowId: this.flow.id,
       startNodeId: startNode.id,
     });
+    console.log('[FlowEngine] Session created:', session.id);
 
     return session;
   }
@@ -100,8 +104,10 @@ export class FlowEngine {
     sessionId: string,
     trigger: TriggerInput
   ): Promise<TurnResult> {
+    console.log('[FlowEngine] executeTurn called', { sessionId, trigger });
     const session = await this.sessionStore.get(sessionId);
     if (!session) {
+      console.error('[FlowEngine] Session not found:', sessionId);
       return {
         success: false,
         messages: [],
@@ -110,6 +116,7 @@ export class FlowEngine {
         error: 'Session not found',
       };
     }
+    console.log('[FlowEngine] Session loaded, currentNodeId:', session.currentNodeId);
 
     // Reset turn counters
     let updatedSession = await this.sessionStore.update(sessionId, {
@@ -143,9 +150,24 @@ export class FlowEngine {
 
     const collectedMessages: SessionMessage[] = [];
     let currentNodeId = updatedSession.currentNodeId;
+    let loopCount = 0;
 
     // Execute nodes until blocking or end
     while (currentNodeId) {
+      loopCount++;
+      console.log(`[FlowEngine] Loop iteration ${loopCount}, currentNodeId:`, currentNodeId);
+
+      if (loopCount > 100) {
+        console.error('[FlowEngine] Emergency break: too many loop iterations');
+        return {
+          success: false,
+          messages: collectedMessages,
+          sessionStatus: 'ERROR',
+          currentNodeId,
+          error: 'Emergency break: possible infinite loop detected',
+        };
+      }
+
       const node = this.flow.nodes.find((n) => n.id === currentNodeId);
       if (!node) {
         return {
@@ -190,13 +212,16 @@ export class FlowEngine {
       };
 
       // Execute node
+      console.log(`[FlowEngine] Executing node ${currentNodeId} (type: ${node.type})`);
       const executor = getNodeExecutor(node.type as FlowNodeType);
       const startTime = new Date().toISOString();
       let result: ExecutionResult;
 
       try {
         result = await executor.execute(context);
+        console.log(`[FlowEngine] Node ${currentNodeId} result:`, result.type, result);
       } catch (error) {
+        console.error(`[FlowEngine] Node ${currentNodeId} execution error:`, error);
         result = {
           type: 'error',
           error: {

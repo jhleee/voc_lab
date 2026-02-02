@@ -53,15 +53,19 @@ export function useFlowExecution(): UseFlowExecutionReturn {
   // ---------------------------------------------------------------------------
 
   const startSession = useCallback(async (flow: FlowDefinition, projectId: string) => {
+    console.log('[useFlowExecution] startSession called', { flowId: flow.id, projectId });
     try {
       setState((s) => ({ ...s, isLoading: true, error: null }));
 
       // Create new engine
+      console.log('[useFlowExecution] Creating engine...');
       const engine = createFlowEngine(flow, sessionStoreRef.current);
       engineRef.current = engine;
 
       // Start session
+      console.log('[useFlowExecution] Starting session in engine...');
       const session = await engine.startSession(projectId);
+      console.log('[useFlowExecution] Session created:', session.id);
 
       setState((s) => ({
         ...s,
@@ -72,12 +76,14 @@ export function useFlowExecution(): UseFlowExecutionReturn {
       }));
 
       // Execute initial turn (start node)
+      console.log('[useFlowExecution] Executing initial turn...');
       const trigger: TriggerInput = {
         type: 'user_message',
         payload: { message: '' }, // Empty message for initial trigger
       };
 
       const result = await engine.executeTurn(session.id, trigger);
+      console.log('[useFlowExecution] Initial turn result:', result);
 
       if (result.messages.length > 0) {
         setState((s) => ({
@@ -95,6 +101,7 @@ export function useFlowExecution(): UseFlowExecutionReturn {
       }));
 
     } catch (error) {
+      console.error('[useFlowExecution] startSession error:', error);
       setState((s) => ({
         ...s,
         isLoading: false,

@@ -54,7 +54,16 @@ export function ChatDrawer() {
 
   // Start session when drawer opens
   useEffect(() => {
-    if (isOpen && !session && flowId && projectId && nodes.length > 0) {
+    console.log('[ChatDrawer] useEffect triggered', {
+      isOpen,
+      hasSession: !!session,
+      isLoading,
+      flowId,
+      projectId,
+      nodesCount: nodes.length,
+    });
+    if (isOpen && !session && !isLoading && flowId && projectId && nodes.length > 0) {
+      console.log('[ChatDrawer] Starting session...');
       const flow: FlowDefinition = {
         id: flowId,
         nodes,
@@ -62,7 +71,7 @@ export function ChatDrawer() {
       };
       startSession(flow, projectId);
     }
-  }, [isOpen, session, flowId, projectId, nodes, edges, startSession]);
+  }, [isOpen, session, isLoading, flowId, projectId, nodes, edges, startSession]);
 
   const handleSend = async (content: string) => {
     await sendMessage(content);
@@ -122,6 +131,15 @@ export function ChatDrawer() {
             </div>
           </div>
         </SheetHeader>
+
+        {!flowId && (
+          <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/20">
+            <div className="flex items-center gap-2 text-sm text-yellow-700">
+              <AlertCircle className="h-4 w-4" />
+              플로우가 저장되지 않았습니다. 플로우를 저장한 후 테스트하세요.
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20">
@@ -187,7 +205,7 @@ export function ChatDrawer() {
 
         <ChatInput
           onSend={handleSend}
-          disabled={isLoading || !isRunning}
+          disabled={isLoading || !isRunning || !flowId}
         />
       </SheetContent>
     </Sheet>

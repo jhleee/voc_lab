@@ -444,8 +444,10 @@ const executors: Record<FlowNodeType, NodeExecutor> = {
 };
 
 export function getNodeExecutor(type: FlowNodeType): NodeExecutor {
+  console.log('[NodeExecutor] Getting executor for type:', type);
   const executor = executors[type];
   if (!executor) {
+    console.error('[NodeExecutor] Unknown node type:', type);
     throw new Error(`Unknown node type: ${type}`);
   }
   return executor;

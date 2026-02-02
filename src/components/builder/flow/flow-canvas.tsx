@@ -101,6 +101,9 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
       try {
         // 프로젝트의 플로우 목록 조회
         const response = await fetch(`/api/projects/${projectId}/flows`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch flows');
+        }
         const flows = await response.json();
 
         if (flows.length > 0) {
@@ -113,16 +116,22 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: '새 플로우' }),
           });
+          if (!createResponse.ok) {
+            throw new Error('Failed to create flow');
+          }
           const newFlow = await createResponse.json();
+          if (!newFlow.id) {
+            throw new Error('Invalid flow response');
+          }
           await loadFlow(projectId, newFlow.id);
         }
       } catch (error) {
         console.error('Failed to initialize flow:', error);
-        // 폴백: 로컬 초기화
+        // 폴백: 로컬 초기화 (주의: 챗봇 테스트는 DB에 저장된 플로우가 필요함)
         initializeFlow({
           projectId,
-          flowId: 'local-flow',
-          flowName: '새 플로우',
+          flowId: '', // 빈 ID로 설정하여 테스트 버튼 비활성화
+          flowName: '새 플로우 (로컬)',
           nodes: [{
             id: 'start-1',
             type: 'start',

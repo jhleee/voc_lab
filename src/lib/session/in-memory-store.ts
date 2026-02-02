@@ -25,8 +25,10 @@ export class InMemorySessionStore implements ExtendedSessionStore {
   }
 
   async create(options: CreateSessionOptions): Promise<Session> {
+    console.log('[InMemorySessionStore] create called', options);
     const now = new Date().toISOString();
     const sessionId = uuidv4();
+    console.log('[InMemorySessionStore] Generated sessionId:', sessionId);
 
     const session: Session = {
       id: sessionId,
@@ -58,10 +60,12 @@ export class InMemorySessionStore implements ExtendedSessionStore {
     };
 
     this.sessions.set(sessionId, session);
+    console.log('[InMemorySessionStore] Session created and stored');
     return session;
   }
 
   async update(sessionId: string, updates: Partial<Session>): Promise<Session> {
+    console.log('[InMemorySessionStore] update called', { sessionId, updates: Object.keys(updates) });
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
@@ -118,9 +122,12 @@ export class InMemorySessionStore implements ExtendedSessionStore {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    // In-memory store just deletes the session
-    // Actual persistence happens in SessionManager
-    this.sessions.delete(sessionId);
+    // In-memory store: 세션을 삭제하지 않고 상태만 COMPLETED로 유지
+    // 삭제하면 클라이언트에서 세션이 null이 되어 무한 루프 발생
+    // Actual persistence happens in SessionManager (server-side)
+    session.status = 'COMPLETED';
+    session.updatedAt = new Date().toISOString();
+    this.sessions.set(sessionId, session);
   }
 
   // Debug helpers
