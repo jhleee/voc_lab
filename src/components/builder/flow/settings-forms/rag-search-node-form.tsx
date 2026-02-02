@@ -22,6 +22,10 @@ export function RAGSearchNodeForm({ data }: RAGSearchNodeFormProps) {
   const nodeData = data as RAGSearchNodeData;
   const { updateFormData } = useNodeSettings();
 
+  // Default values
+  const topK = nodeData.topK ?? nodeData.maxResults ?? 3;
+  const similarityThreshold = nodeData.similarityThreshold ?? nodeData.minScore ?? 0.5;
+
   return (
     <div className="space-y-6">
       <FormSection title="기본 설정">
@@ -72,12 +76,12 @@ export function RAGSearchNodeForm({ data }: RAGSearchNodeFormProps) {
 
       <FormSection title="검색 설정">
         <FormField
-          label={`Top-K: ${nodeData.topK}`}
+          label={`Top-K: ${topK}`}
           description="검색 결과로 반환할 최대 문서 수"
         >
           <Slider
-            value={[nodeData.topK]}
-            onValueChange={([value]) => updateFormData({ topK: value })}
+            value={[topK]}
+            onValueChange={([value]) => updateFormData({ topK: value, maxResults: value })}
             min={1}
             max={20}
             step={1}
@@ -86,13 +90,13 @@ export function RAGSearchNodeForm({ data }: RAGSearchNodeFormProps) {
         </FormField>
 
         <FormField
-          label={`유사도 임계값: ${(nodeData.similarityThreshold * 100).toFixed(0)}%`}
+          label={`유사도 임계값: ${(similarityThreshold * 100).toFixed(0)}%`}
           description="이 값 이상의 유사도를 가진 문서만 반환됩니다."
         >
           <Slider
-            value={[nodeData.similarityThreshold * 100]}
+            value={[similarityThreshold * 100]}
             onValueChange={([value]) =>
-              updateFormData({ similarityThreshold: value / 100 })
+              updateFormData({ similarityThreshold: value / 100, minScore: value / 100 })
             }
             min={0}
             max={100}

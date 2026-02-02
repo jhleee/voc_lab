@@ -128,10 +128,21 @@ export interface IntentClassifierNodeData extends BaseNodeData {
 /** RAG 검색 노드 */
 export interface RAGSearchNodeData extends BaseNodeData {
   type: 'rag_search';
-  documentSetId: string;
-  documentSetVersion: 'latest' | string;
-  topK: number;
-  similarityThreshold: number;
+  /** 검색할 문서 ID 목록 */
+  documentIds?: string[];
+  /** (deprecated) 문서 세트 ID */
+  documentSetId?: string;
+  /** (deprecated) 문서 세트 버전 */
+  documentSetVersion?: 'latest' | string;
+  /** 반환할 최대 결과 수 (기본: 3) */
+  maxResults?: number;
+  /** (deprecated) alias for maxResults */
+  topK?: number;
+  /** 최소 유사도 점수 (0-1, 기본: 0.5) */
+  minScore?: number;
+  /** (deprecated) alias for minScore */
+  similarityThreshold?: number;
+  /** 응답 생성 시 사용할 페르소나 */
   persona?: string;
 }
 

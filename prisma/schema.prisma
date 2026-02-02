@@ -1,9 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model User {
@@ -30,15 +32,44 @@ model Project {
 }
 
 model Document {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   title     String
-  content   String   @db.Text
-  fileType  String   // 'pdf' | 'doc' | 'txt' | 'md'
+  content   String         @db.Text
+  fileType  String         // 'pdf' | 'doc' | 'txt' | 'md'
   fileSize  Int
+  filePath  String?        // Local file path for uploaded files
+  status    DocumentStatus @default(PENDING)
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chunks    DocumentChunk[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+}
+
+enum DocumentStatus {
+  PENDING     // Uploaded, waiting for processing
+  PROCESSING  // Currently being parsed/chunked
+  EMBEDDING   // Generating embeddings
+  READY       // Fully processed, ready for search
+  ERROR       // Processing failed
+}
+
+model DocumentChunk {
+  id         String                   @id @default(cuid())
+  content    String                   @db.Text
+  chunkIndex Int                      // Position in document (0-based)
+  startChar  Int?                     // Start character offset in original document
+  endChar    Int?                     // End character offset in original document
+  metadata   Json?                    // Additional metadata (page number, heading, etc.)
+  embedding  Unsupported("vector(1536)")?  // OpenAI ada-002 embedding dimension
+  documentId String
+  document   Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                 @default(now())
+
+  @@index([documentId])
 }
 
 model Flow {

@@ -54,7 +54,7 @@ describe('flow-nodes type guards', () => {
       const data: FlowNodeData = {
         type: 'end',
         label: '종료',
-        showSummary: false,
+        preserveSession: false,
       };
       expect(isStartNode(data)).toBe(false);
     });
@@ -65,7 +65,7 @@ describe('flow-nodes type guards', () => {
       const data: FlowNodeData = {
         type: 'end',
         label: '종료',
-        showSummary: true,
+        preserveSession: true,
       };
       expect(isEndNode(data)).toBe(true);
     });
@@ -76,7 +76,7 @@ describe('flow-nodes type guards', () => {
       const data: FlowNodeData = {
         type: 'message',
         label: '메시지',
-        messages: [{ type: 'text', content: '안녕하세요' }],
+        messages: [{ id: 'msg-1', type: 'text', content: '안녕하세요' }],
         waitForResponse: true,
       };
       expect(isMessageNode(data)).toBe(true);
@@ -100,7 +100,6 @@ describe('flow-nodes type guards', () => {
         type: 'intent_classifier',
         label: '의도 분류',
         intents: [],
-        fallbackIntent: '기타',
       };
       expect(isIntentClassifierNode(data)).toBe(true);
     });
@@ -111,9 +110,9 @@ describe('flow-nodes type guards', () => {
       const data: FlowNodeData = {
         type: 'rag_search',
         label: 'RAG 검색',
-        documentSetId: 'doc-1',
-        topK: 5,
-        similarityThreshold: 0.7,
+        documentIds: ['doc-1'],
+        maxResults: 5,
+        minScore: 0.7,
       };
       expect(isRAGSearchNode(data)).toBe(true);
     });
@@ -126,7 +125,9 @@ describe('flow-nodes type guards', () => {
         label: 'API',
         method: 'GET',
         url: 'https://api.example.com',
-        timeout: 5000,
+        headers: {},
+        auth: { type: 'none' },
+        retryPolicy: { maxRetries: 3, retryDelay: 1000 },
       };
       expect(isAPIConnectorNode(data)).toBe(true);
     });
@@ -149,7 +150,10 @@ describe('flow-nodes type guards', () => {
       const data: FlowNodeData = {
         type: 'parallel',
         label: '병렬',
-        branchCount: 2,
+        branches: [
+          { id: 'branch-1', label: '브랜치 1' },
+          { id: 'branch-2', label: '브랜치 2' },
+        ],
       };
       expect(isParallelNode(data)).toBe(true);
     });
@@ -204,7 +208,7 @@ describe('flow-nodes type guards', () => {
     it('should only match one type guard per data', () => {
       const testCases: FlowNodeData[] = [
         { type: 'start', label: '시작', triggerType: 'user_message' },
-        { type: 'end', label: '종료', showSummary: false },
+        { type: 'end', label: '종료', preserveSession: false },
         { type: 'message', label: '메시지', messages: [], waitForResponse: true },
       ];
 

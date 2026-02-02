@@ -6,6 +6,7 @@
 
 import { getLLMService } from '@/lib/llm';
 import type { RAGSearchNodeData } from '@/types/flow-nodes';
+import { searchSimilarChunks, type SearchResult } from '@/lib/document-processor/vector-search';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -35,21 +36,46 @@ export interface RAGSource {
 export async function executeRAGSearch(
   query: string,
   config: RAGSearchNodeData,
-  documentContext?: string // MVP: 외부에서 문서 컨텍스트 제공
+  documentContext?: string // 외부에서 문서 컨텍스트 직접 제공 시
 ): Promise<RAGSearchResult> {
   const llm = getLLMService();
+  let sources: RAGSource[] = [];
+  let context = documentContext;
 
-  // MVP: 문서 검색은 아직 구현되지 않음
-  // 실제 구현에서는 pgvector를 사용하여 벡터 검색 수행
-  const sources: RAGSource[] = [];
+  // 벡터 검색 수행 (documentContext가 없는 경우)
+  if (!context && config.documentIds && config.documentIds.length > 0) {
+    try {
+      const searchResults = await searchSimilarChunks(query, {
+        documentIds: config.documentIds,
+        limit: config.maxResults || 3,
+        minScore: config.minScore || 0.5,
+      });
+
+      sources = searchResults.map((r: SearchResult) => ({
+        documentId: r.documentId,
+        documentTitle: r.documentTitle,
+        snippet: r.content.slice(0, 200) + (r.content.length > 200 ? '...' : ''),
+        score: r.score,
+      }));
+
+      // 검색 결과를 컨텍스트로 조합
+      if (searchResults.length > 0) {
+        context = searchResults
+          .map((r) => `[문서: ${r.documentTitle}]\n${r.content}`)
+          .join('\n\n---\n\n');
+      }
+    } catch (error) {
+      console.error('Vector search failed:', error);
+    }
+  }
 
   // LLM이 없으면 기본 응답 반환
   if (!llm.isAvailable()) {
     return {
-      answer: documentContext
-        ? `검색된 문서 내용을 기반으로 답변드립니다:\n\n${documentContext}`
+      answer: context
+        ? `검색된 문서 내용을 기반으로 답변드립니다:\n\n${context}`
         : '죄송합니다. 해당 질문에 대한 정보를 찾을 수 없습니다.',
-      confidence: documentContext ? 0.5 : 0.0,
+      confidence: sources.length > 0 ? 0.6 : (context ? 0.5 : 0.0),
       sources,
       searchQuery: query,
     };
@@ -73,10 +99,10 @@ export async function executeRAGSearch(
   // 사용자 프롬프트 구성
   let userPrompt = `사용자 질문: ${query}`;
 
-  if (documentContext) {
+  if (context) {
     userPrompt = `참고 문서:
 ---
-${documentContext}
+${context}
 ---
 
 ${userPrompt}
@@ -94,13 +120,17 @@ ${userPrompt}
       maxTokens: 1024,
     });
 
-    // 신뢰도 계산 (MVP: 간단한 휴리스틱)
+    // 신뢰도 계산
     let confidence = 0.5;
-    if (documentContext) {
-      confidence = 0.8;
+    if (sources.length > 0) {
+      // 검색된 소스의 평균 점수 기반
+      const avgScore = sources.reduce((sum, s) => sum + s.score, 0) / sources.length;
+      confidence = Math.min(0.9, 0.5 + avgScore * 0.4);
+    } else if (context) {
+      confidence = 0.7;
     }
     if (answer.includes('모르') || answer.includes('찾을 수 없')) {
-      confidence = 0.3;
+      confidence = Math.min(confidence, 0.3);
     }
 
     return {

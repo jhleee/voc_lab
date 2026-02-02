@@ -23,8 +23,8 @@ function RAGSearchNodeComponent({ data, selected }: NodeProps<FlowNode>) {
           <p>문서셋을 선택하세요</p>
         )}
         <div className="flex gap-2">
-          <span>Top-K: {nodeData.topK}</span>
-          <span>임계값: {(nodeData.similarityThreshold * 100).toFixed(0)}%</span>
+          <span>Top-K: {nodeData.topK ?? nodeData.maxResults ?? 3}</span>
+          <span>임계값: {((nodeData.similarityThreshold ?? nodeData.minScore ?? 0.5) * 100).toFixed(0)}%</span>
         </div>
       </div>
     </BaseNode>
