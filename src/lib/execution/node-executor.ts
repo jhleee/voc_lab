@@ -19,8 +19,13 @@ import type {
   ConditionNodeData,
   IntentClassifierNodeData,
   ErrorFallbackNodeData,
+  APIConnectorNodeData,
+  RAGSearchNodeData,
 } from '@/types/flow-nodes';
 import { interpolateVariables } from '@/lib/variable-resolver';
+import { classifyIntent } from './intent-classifier';
+import { executeAPICall } from './api-connector';
+import { executeRAGSearch } from './rag-search';
 
 // -----------------------------------------------------------------------------
 // Node Executor Interface
@@ -248,7 +253,7 @@ function parseValue(str: string): unknown {
 }
 
 // -----------------------------------------------------------------------------
-// Intent Classifier Node Executor (Stub - LLM 연동 필요)
+// Intent Classifier Node Executor
 // -----------------------------------------------------------------------------
 
 export const intentClassifierNodeExecutor: NodeExecutor = {
@@ -259,28 +264,29 @@ export const intentClassifierNodeExecutor: NodeExecutor = {
     const data = context.currentNode.data as IntentClassifierNodeData;
     const intents = data.intents || [];
 
-    // MVP: 첫 번째 의도 반환 (실제로는 LLM 분류 필요)
-    // TODO: LLM 연동
+    if (intents.length === 0) {
+      return {
+        type: 'continue',
+        output: {
+          intent: 'unknown',
+          intentId: null,
+          confidence: 0,
+        },
+      };
+    }
+
     const lastUserInput = context.session.variables.session.lastUserInput || '';
 
-    // 간단한 키워드 매칭 (MVP)
-    let matchedIntent = intents.find((intent) =>
-      intent.examples?.some((ex) =>
-        lastUserInput.toLowerCase().includes(ex.toLowerCase())
-      )
-    );
-
-    if (!matchedIntent && intents.length > 0) {
-      // 매칭 없으면 마지막 의도 (보통 '기타')
-      matchedIntent = intents[intents.length - 1];
-    }
+    // LLM 기반 의도 분류 (키워드 매칭 폴백 포함)
+    const result = await classifyIntent(lastUserInput, intents);
 
     return {
       type: 'continue',
       output: {
-        intent: matchedIntent?.name || 'unknown',
-        intentId: matchedIntent?.id,
-        confidence: matchedIntent ? 0.8 : 0.0, // MVP: 고정값
+        intent: result.intentName,
+        intentId: result.intentId,
+        confidence: result.confidence,
+        reasoning: result.reasoning,
       },
     };
   },
@@ -293,15 +299,23 @@ export const intentClassifierNodeExecutor: NodeExecutor = {
 export const ragSearchNodeExecutor: NodeExecutor = {
   type: 'rag_search',
   isBlocking: false,
-  async execute(): Promise<ExecutionResult> {
-    // TODO: RAG 검색 구현
+
+  async execute(context: ExecutionContext): Promise<ExecutionResult> {
+    const data = context.currentNode.data as RAGSearchNodeData;
+    const lastUserInput = context.session.variables.session.lastUserInput || '';
+
+    // MVP: 문서 검색은 아직 미구현, LLM 기반 응답만 생성
+    const result = await executeRAGSearch(lastUserInput, data);
+
     return {
       type: 'continue',
       output: {
-        answer: 'RAG 검색 기능은 아직 구현되지 않았습니다.',
-        confidence: 0,
-        sources: [],
+        answer: result.answer,
+        confidence: result.confidence,
+        sources: result.sources,
+        searchQuery: result.searchQuery,
       },
+      messages: [createMessage('outbound', result.answer)],
     };
   },
 };
@@ -326,14 +340,35 @@ export const joinNodeExecutor: NodeExecutor = {
 export const apiConnectorNodeExecutor: NodeExecutor = {
   type: 'api_connector',
   isBlocking: false,
-  async execute(): Promise<ExecutionResult> {
-    // TODO: API 호출 구현
+
+  async execute(context: ExecutionContext): Promise<ExecutionResult> {
+    const data = context.currentNode.data as APIConnectorNodeData;
+
+    const result = await executeAPICall(data, context.session.variables);
+
+    if (!result.success) {
+      return {
+        type: 'error',
+        output: {
+          response: result.response,
+          statusCode: result.statusCode,
+          error: result.error,
+          duration: result.duration,
+        },
+        error: {
+          message: result.error || 'API call failed',
+          code: `HTTP_${result.statusCode}`,
+        },
+      };
+    }
+
     return {
       type: 'continue',
       output: {
-        response: null,
-        statusCode: 0,
-        error: 'API 커넥터는 아직 구현되지 않았습니다.',
+        response: result.response,
+        statusCode: result.statusCode,
+        headers: result.headers,
+        duration: result.duration,
       },
     };
   },
