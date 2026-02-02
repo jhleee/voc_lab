@@ -1,3 +1,10 @@
+// Re-export flow node types
+export * from './flow-nodes';
+export * from './variables';
+
+// Import FlowNode for use in Flow interface
+import type { FlowNode } from './flow-nodes';
+
 export interface Project {
   id: string;
   name: string;
@@ -35,7 +42,9 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export interface FlowNode {
+// FlowNode는 flow-nodes.ts에서 export됨
+// 기존 타입은 LegacyFlowNode로 유지 (마이그레이션용)
+export interface LegacyFlowNode {
   id: string;
   type: 'start' | 'message' | 'condition' | 'action';
   position: { x: number; y: number };

@@ -1,29 +1,26 @@
 'use client';
 
 import { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import type { NodeProps, Node } from '@xyflow/react';
-import { Play } from 'lucide-react';
+import type { NodeProps } from '@xyflow/react';
+import { BaseNode } from './base-node';
+import type { StartNodeData, FlowNode } from '@/types/flow-nodes';
 
-type StartNodeData = {
-  label: string;
+const TRIGGER_LABELS: Record<StartNodeData['triggerType'], string> = {
+  user_message: '사용자 메시지',
+  chat_open: '채팅창 오픈',
+  api_call: 'API 호출',
+  email_received: '이메일 수신',
 };
 
-type StartNodeType = Node<StartNodeData, 'start'>;
+function StartNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+  const nodeData = data as StartNodeData;
 
-function StartNodeComponent({ data }: NodeProps<StartNodeType>) {
   return (
-    <div className="px-4 py-2 shadow-md rounded-full bg-green-500 text-white border-2 border-green-600">
-      <div className="flex items-center gap-2">
-        <Play className="h-4 w-4" />
-        <span className="text-sm font-medium">{data.label}</span>
+    <BaseNode data={nodeData} selected={selected}>
+      <div className="text-xs text-muted-foreground">
+        트리거: {TRIGGER_LABELS[nodeData.triggerType]}
       </div>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-3 h-3 !bg-green-700"
-      />
-    </div>
+    </BaseNode>
   );
 }
 

@@ -1,96 +1,166 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   Controls,
   Background,
-  useNodesState,
-  useEdgesState,
   addEdge,
+  applyNodeChanges,
+  applyEdgeChanges,
   BackgroundVariant,
   Panel,
 } from '@xyflow/react';
-import type { Connection, Edge, Node } from '@xyflow/react';
+import type { Connection, NodeChange, EdgeChange, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Plus, MessageSquare } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { StartNode } from './nodes/start-node';
-import { MessageNode } from './nodes/message-node';
+import { nodeTypes } from './nodes';
+import { NodeSettingsPanel } from './node-settings-panel';
+import { useNodeSettings } from '@/hooks/use-node-settings';
+import { useFlowStore } from '@/hooks/use-flow-store';
+import {
+  getNodesByCategory,
+  CATEGORY_LABELS,
+} from '@/lib/node-registry';
+import type { FlowNodeType, FlowNodeData } from '@/types/flow-nodes';
 
-const nodeTypes = {
-  start: StartNode,
-  message: MessageNode,
+// -----------------------------------------------------------------------------
+// Icon Map
+// -----------------------------------------------------------------------------
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Play: LucideIcons.Play,
+  Square: LucideIcons.Square,
+  MessageSquare: LucideIcons.MessageSquare,
+  AlertTriangle: LucideIcons.AlertTriangle,
+  Brain: LucideIcons.Brain,
+  Search: LucideIcons.Search,
+  GitBranch: LucideIcons.GitBranch,
+  GitFork: LucideIcons.GitFork,
+  GitMerge: LucideIcons.GitMerge,
+  Globe: LucideIcons.Globe,
+  Code: LucideIcons.Code,
+  UserPlus: LucideIcons.UserPlus,
+  CheckCircle: LucideIcons.CheckCircle,
 };
 
-const initialNodes: Node[] = [
-  {
-    id: 'start-1',
-    type: 'start',
-    position: { x: 250, y: 50 },
-    data: { label: '시작' },
-  },
-  {
-    id: 'message-1',
-    type: 'message',
-    position: { x: 200, y: 150 },
-    data: { label: '인사 메시지', content: '안녕하세요! 무엇을 도와드릴까요?' },
-  },
-  {
-    id: 'message-2',
-    type: 'message',
-    position: { x: 200, y: 280 },
-    data: { label: '옵션 안내', content: '1. 주문 조회\n2. 환불 문의\n3. 기타 문의' },
-  },
-];
-
-const initialEdges: Edge[] = [
-  { id: 'e1-2', source: 'start-1', target: 'message-1', animated: true },
-  { id: 'e2-3', source: 'message-1', target: 'message-2' },
-];
+// -----------------------------------------------------------------------------
+// Flow Canvas Component
+// -----------------------------------------------------------------------------
 
 export function FlowCanvas() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [nodeIdCounter, setNodeIdCounter] = useState(3);
+  // Flow store state and actions
+  const {
+    nodes,
+    edges,
+    selectedNodeId,
+    setNodes,
+    setEdges,
+    addNode: storeAddNode,
+    selectNode,
+    initializeFlow,
+  } = useFlowStore();
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+  const { open: openSettings } = useNodeSettings();
+
+  // Initialize flow on mount (if no nodes exist)
+  useEffect(() => {
+    if (nodes.length === 0) {
+      initializeFlow({
+        projectId: 'default-project',
+        flowId: 'default-flow',
+        flowName: '새 플로우',
+        nodes: [{
+          id: 'start-1',
+          type: 'start',
+          position: { x: 250, y: 50 },
+          data: {
+            type: 'start',
+            label: '시작',
+            triggerType: 'user_message',
+          } as FlowNodeData,
+        }],
+        edges: [],
+      });
+    }
+  }, [initializeFlow, nodes.length]);
+
+  // Handle node changes (drag, select, remove)
+  const onNodesChange = useCallback(
+    (changes: NodeChange<Node<FlowNodeData>>[]) => {
+      setNodes(applyNodeChanges(changes, nodes));
+    },
+    [nodes, setNodes]
   );
 
-  const addMessageNode = useCallback(() => {
-    // TODO: Implement node creation with modal for content input
-    const newNode: Node = {
-      id: `message-${nodeIdCounter}`,
-      type: 'message',
-      position: { x: 200 + Math.random() * 100, y: 350 + Math.random() * 100 },
-      data: { label: `메시지 ${nodeIdCounter}`, content: '새 메시지 내용...' },
-    };
-    setNodes((nds) => [...nds, newNode]);
-    setNodeIdCounter((prev) => prev + 1);
-  }, [nodeIdCounter, setNodes]);
+  // Handle edge changes (select, remove)
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setEdges(applyEdgeChanges(changes, edges));
+    },
+    [edges, setEdges]
+  );
+
+  // Handle new connections
+  const onConnect = useCallback(
+    (params: Connection) => setEdges(addEdge(params, edges)),
+    [edges, setEdges]
+  );
+
+  // Add new node
+  const handleAddNode = useCallback(
+    (type: FlowNodeType) => {
+      storeAddNode(type);
+    },
+    [storeAddNode]
+  );
+
+  // Handle node click - open settings panel
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node<FlowNodeData>) => {
+      selectNode(node.id);
+      const nodeType = node.type as FlowNodeType;
+      openSettings(node.id, nodeType, node.data);
+    },
+    [selectNode, openSettings]
+  );
+
+  // Handle pane click - deselect node
+  const onPaneClick = useCallback(() => {
+    selectNode(null);
+  }, [selectNode]);
+
+  const categories = getNodesByCategory();
 
   return (
     <div className="h-full w-full">
+      <NodeSettingsPanel />
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
         className="bg-muted/20"
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
         <Controls />
+
+        {/* Node Add Panel */}
         <Panel position="top-left" className="m-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -99,13 +169,38 @@ export function FlowCanvas() {
                 노드 추가
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={addMessageNode}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                메시지 노드
-              </DropdownMenuItem>
+            <DropdownMenuContent className="w-56 max-h-[400px] overflow-y-auto">
+              {Object.entries(categories).map(([category, catNodes], idx) => (
+                <div key={category}>
+                  {idx > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel>
+                    {CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}
+                  </DropdownMenuLabel>
+                  {catNodes.map((metadata) => {
+                    const Icon = ICON_MAP[metadata.icon] || LucideIcons.Circle;
+                    return (
+                      <DropdownMenuItem
+                        key={metadata.type}
+                        onClick={() => handleAddNode(metadata.type)}
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        {metadata.displayName}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        </Panel>
+
+        {/* Status Panel */}
+        <Panel position="top-right" className="m-4">
+          <div className="bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border text-sm">
+            <span className="text-muted-foreground">
+              노드: {nodes.length} | 연결: {edges.length}
+            </span>
+          </div>
         </Panel>
       </ReactFlow>
     </div>
