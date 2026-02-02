@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNodeSettings } from '@/hooks/use-node-settings';
 import { FormSection, FormField, FormDivider } from './form-section';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { VariableTextarea } from '../variable-picker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -124,16 +124,13 @@ export function MessageNodeForm({ data }: MessageNodeFormProps) {
                 </FormField>
               </div>
 
-              <FormField label="내용">
-                <Textarea
-                  value={message.content}
-                  onChange={(e) =>
-                    updateMessage(index, { content: e.target.value })
-                  }
-                  placeholder="메시지 내용을 입력하세요. 변수: {{session.userName}}"
-                  rows={3}
-                />
-              </FormField>
+              <VariableTextarea
+                label="내용"
+                value={message.content}
+                onChange={(content) => updateMessage(index, { content })}
+                placeholder="메시지 내용을 입력하세요"
+                rows={3}
+              />
 
               {message.type === 'image' && (
                 <FormField label="이미지 URL">

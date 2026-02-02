@@ -4,6 +4,7 @@ import { useNodeSettings } from '@/hooks/use-node-settings';
 import { FormSection, FormField, FormDivider } from './form-section';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { VariableInput } from '../variable-picker';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FlowNodeData, ConditionNodeData, ConditionDefinition } from '@/types/flow-nodes';
 
@@ -88,19 +89,12 @@ export function ConditionNodeForm({ data }: ConditionNodeFormProps) {
                 />
               </FormField>
 
-              <FormField
+              <VariableInput
                 label="조건식"
-                description='예: {{session.userGrade}} == "VIP"'
-              >
-                <Input
-                  value={condition.expression}
-                  onChange={(e) =>
-                    updateCondition(index, { expression: e.target.value })
-                  }
-                  placeholder='{{session.amount}} >= 100000'
-                  className="font-mono text-sm"
-                />
-              </FormField>
+                value={condition.expression}
+                onChange={(expression) => updateCondition(index, { expression })}
+                placeholder='{{session.amount}} >= 100000'
+              />
             </div>
           ))}
 
