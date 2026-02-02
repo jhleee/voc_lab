@@ -24,15 +24,22 @@ export interface Flow {
   updatedAt: Date;
 }
 
+export type DocumentStatus = 'PENDING' | 'PROCESSING' | 'EMBEDDING' | 'READY' | 'ERROR';
+
 export interface Document {
   id: string;
   title: string;
   content: string;
   fileType: 'pdf' | 'doc' | 'txt' | 'md';
   fileSize: number;
+  filePath?: string;
+  status: DocumentStatus;
   projectId: string;
   createdAt: Date;
   updatedAt: Date;
+  _count?: {
+    chunks: number;
+  };
 }
 
 export interface ChatMessage {

@@ -41,6 +41,7 @@ export const mockDocuments: Document[] = [
     content: '고객 응대 시 기본 원칙과 주의사항...',
     fileType: 'pdf',
     fileSize: 1024 * 512, // 512KB
+    status: 'READY',
     projectId: 'project-1',
     createdAt: new Date('2025-01-16'),
     updatedAt: new Date('2025-01-16'),
@@ -51,6 +52,7 @@ export const mockDocuments: Document[] = [
     content: '2025년 신제품 카탈로그...',
     fileType: 'pdf',
     fileSize: 1024 * 1024 * 2, // 2MB
+    status: 'READY',
     projectId: 'project-1',
     createdAt: new Date('2025-01-17'),
     updatedAt: new Date('2025-01-20'),
@@ -61,6 +63,7 @@ export const mockDocuments: Document[] = [
     content: '환불 및 교환 정책에 대한 상세 안내...',
     fileType: 'doc',
     fileSize: 1024 * 256, // 256KB
+    status: 'PROCESSING',
     projectId: 'project-1',
     createdAt: new Date('2025-01-18'),
     updatedAt: new Date('2025-01-18'),
@@ -71,6 +74,7 @@ export const mockDocuments: Document[] = [
     content: 'Q1. 배송은 얼마나 걸리나요?\nA1. 일반적으로 2-3일...',
     fileType: 'md',
     fileSize: 1024 * 64, // 64KB
+    status: 'READY',
     projectId: 'project-1',
     createdAt: new Date('2025-01-19'),
     updatedAt: new Date('2025-01-25'),
@@ -81,6 +85,7 @@ export const mockDocuments: Document[] = [
     content: 'VIP, Gold, Silver 등급별 혜택 안내...',
     fileType: 'txt',
     fileSize: 1024 * 32, // 32KB
+    status: 'PENDING',
     projectId: 'project-1',
     createdAt: new Date('2025-01-20'),
     updatedAt: new Date('2025-01-20'),

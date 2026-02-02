@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Upload } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { Upload, AlertCircle } from 'lucide-react';
 import { DocsSearch } from '@/components/builder/docs/docs-search';
 import { DocsGrid } from '@/components/builder/docs/docs-grid';
-import { mockDocuments } from '@/lib/mock-data';
-import type { Document } from '@/types';
+import { useDocuments } from '@/hooks/use-documents';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 // Allowed file extensions for upload
@@ -18,18 +19,33 @@ function isValidFileExtension(filename: string): boolean {
 }
 
 export default function DocsPage() {
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
+  const params = useParams();
+  const projectId = params.projectId as string;
+
+  const {
+    documents,
+    isLoading,
+    error,
+    uploadDocument,
+    deleteDocument,
+    processDocument,
+  } = useDocuments({ projectId });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const filteredDocuments = documents.filter((doc) =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDelete = (id: string) => {
-    // TODO: Implement actual deletion API call
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  const handleDelete = async (id: string) => {
+    await deleteDocument(id);
+  };
+
+  const handleProcess = async (id: string) => {
+    await processDocument(id);
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -42,58 +58,84 @@ export default function DocsPage() {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    setUploadError(null);
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      setUploadError(null);
 
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) return;
 
-    // Validate files before processing
-    const invalidFiles: string[] = [];
-    const oversizedFiles: string[] = [];
-    const validFiles = files.filter((file) => {
-      if (!isValidFileExtension(file.name)) {
-        invalidFiles.push(file.name);
-        return false;
+      // Validate files before processing
+      const invalidFiles: string[] = [];
+      const oversizedFiles: string[] = [];
+      const validFiles = files.filter((file) => {
+        if (!isValidFileExtension(file.name)) {
+          invalidFiles.push(file.name);
+          return false;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          oversizedFiles.push(file.name);
+          return false;
+        }
+        return true;
+      });
+
+      // Show error messages for invalid files
+      const errors: string[] = [];
+      if (invalidFiles.length > 0) {
+        errors.push(`지원하지 않는 파일 형식: ${invalidFiles.join(', ')}`);
       }
-      if (file.size > MAX_FILE_SIZE) {
-        oversizedFiles.push(file.name);
-        return false;
+      if (oversizedFiles.length > 0) {
+        errors.push(`파일 크기 초과 (최대 10MB): ${oversizedFiles.join(', ')}`);
       }
-      return true;
-    });
+      if (errors.length > 0) {
+        setUploadError(errors.join('\n'));
+      }
 
-    // Show error messages for invalid files
-    const errors: string[] = [];
-    if (invalidFiles.length > 0) {
-      errors.push(`지원하지 않는 파일 형식: ${invalidFiles.join(', ')}`);
-    }
-    if (oversizedFiles.length > 0) {
-      errors.push(`파일 크기 초과 (최대 10MB): ${oversizedFiles.join(', ')}`);
-    }
-    if (errors.length > 0) {
-      setUploadError(errors.join('\n'));
-    }
+      if (validFiles.length === 0) return;
 
-    if (validFiles.length === 0) return;
+      // Upload files
+      setIsUploading(true);
+      try {
+        for (const file of validFiles) {
+          await uploadDocument(file);
+        }
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [uploadDocument]
+  );
 
-    // TODO: Implement actual file upload API
-    // For demo, create mock documents
-    const newDocs: Document[] = validFiles.map((file, index) => ({
-      id: `doc-new-${Date.now()}-${index}`,
-      title: file.name,
-      content: `업로드된 파일: ${file.name}`,
-      fileType: getFileType(file.name),
-      fileSize: file.size,
-      projectId: 'project-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+  const handleFileInput = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
 
-    setDocuments((prev) => [...newDocs, ...prev]);
-  }, []);
+      setUploadError(null);
+      setIsUploading(true);
+
+      try {
+        for (const file of Array.from(files)) {
+          if (!isValidFileExtension(file.name)) {
+            setUploadError(`지원하지 않는 파일 형식: ${file.name}`);
+            continue;
+          }
+          if (file.size > MAX_FILE_SIZE) {
+            setUploadError(`파일 크기 초과 (최대 10MB): ${file.name}`);
+            continue;
+          }
+          await uploadDocument(file);
+        }
+      } finally {
+        setIsUploading(false);
+        e.target.value = '';
+      }
+    },
+    [uploadDocument]
+  );
 
   return (
     <div
@@ -102,29 +144,46 @@ export default function DocsPage() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">문서 관리</h1>
-        <p className="text-muted-foreground">
-          챗봇이 참조할 문서를 관리합니다.
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">문서 관리</h1>
+          <p className="text-muted-foreground">
+            챗봇이 참조할 문서를 관리합니다.
+          </p>
+        </div>
+        <label className="cursor-pointer">
+          <input
+            type="file"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.txt,.md"
+            multiple
+            onChange={handleFileInput}
+            disabled={isUploading}
+          />
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+            <Upload className="h-4 w-4" />
+            {isUploading ? '업로드 중...' : '파일 업로드'}
+          </span>
+        </label>
       </div>
 
       <div className="mb-6 max-w-md">
         <DocsSearch value={searchQuery} onChange={setSearchQuery} />
       </div>
 
-      {uploadError && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm whitespace-pre-line">
-          {uploadError}
-        </div>
+      {(uploadError || error) && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="whitespace-pre-line">
+            {uploadError || error}
+          </AlertDescription>
+        </Alert>
       )}
 
       <div
         className={cn(
           'relative min-h-[400px] rounded-lg border-2 border-dashed transition-colors',
-          isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-transparent'
+          isDragging ? 'border-primary bg-primary/5' : 'border-transparent'
         )}
       >
         {isDragging && (
@@ -136,23 +195,13 @@ export default function DocsPage() {
             </p>
           </div>
         )}
-        <DocsGrid documents={filteredDocuments} onDelete={handleDelete} />
+        <DocsGrid
+          documents={filteredDocuments}
+          isLoading={isLoading}
+          onDelete={handleDelete}
+          onProcess={handleProcess}
+        />
       </div>
     </div>
   );
-}
-
-function getFileType(filename: string): Document['fileType'] {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'pdf':
-      return 'pdf';
-    case 'doc':
-    case 'docx':
-      return 'doc';
-    case 'md':
-      return 'md';
-    default:
-      return 'txt';
-  }
 }
