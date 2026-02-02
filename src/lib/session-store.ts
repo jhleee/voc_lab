@@ -1,14 +1,26 @@
 // =============================================================================
-// Session Store (Legacy Compatibility)
+// Session Store (Legacy Compatibility - Client Safe)
 // =============================================================================
-// 새로운 세션 모듈로 리다이렉트
+// 클라이언트 컴포넌트에서 사용 가능한 세션 스토어
+// NOTE: SessionManager는 Prisma를 사용하므로 서버에서만 import해야 함
 // =============================================================================
 
-export { getSessionStore, getSessionManager, InMemorySessionStore } from './session';
+import { InMemorySessionStore } from './session/in-memory-store';
+
+export { InMemorySessionStore };
 export type { SessionStore } from '@/types/session';
 
+// Singleton session store for client-side use
+let sessionStoreInstance: InMemorySessionStore | null = null;
+
+export function getSessionStore(): InMemorySessionStore {
+  if (!sessionStoreInstance) {
+    sessionStoreInstance = new InMemorySessionStore();
+  }
+  return sessionStoreInstance;
+}
+
 // Legacy compatibility: create a fresh session store for testing
-export function createSessionStore() {
-  const { InMemorySessionStore } = require('./session');
+export function createSessionStore(): InMemorySessionStore {
   return new InMemorySessionStore();
 }

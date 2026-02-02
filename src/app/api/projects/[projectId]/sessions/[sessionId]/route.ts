@@ -1,75 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionManager } from '@/lib/session';
+import { prisma } from '@/lib/prisma';
+import { sessionManager } from '@/lib/session/session-manager';
 
-type RouteParams = {
-  params: Promise<{ projectId: string; sessionId: string }>;
-};
-
-// GET: 단일 세션 상세 조회
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET /api/projects/:projectId/sessions/:sessionId - Get session detail
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string; sessionId: string }> }
+) {
   try {
     const { projectId, sessionId } = await params;
-    const sessionManager = getSessionManager();
 
-    // 먼저 활성 세션에서 찾기
+    // First check in-memory store for active session
     const activeSession = await sessionManager.get(sessionId);
     if (activeSession && activeSession.projectId === projectId) {
       return NextResponse.json({
         type: 'active',
-        session: activeSession,
+        session: {
+          id: activeSession.id,
+          projectId: activeSession.projectId,
+          flowId: activeSession.flowId,
+          status: activeSession.status,
+          currentNodeId: activeSession.currentNodeId,
+          messages: activeSession.messages.map(m => ({
+            id: m.id,
+            direction: m.direction,
+            content: m.content,
+            contentType: m.contentType,
+            createdAt: m.createdAt,
+          })),
+          executionHistory: activeSession.executionHistory.map(e => ({
+            nodeId: e.nodeId,
+            nodeType: e.nodeType,
+            startedAt: e.startedAt,
+            endedAt: e.endedAt,
+            status: e.status,
+            output: e.output,
+            error: e.error,
+          })),
+          createdAt: activeSession.createdAt,
+          updatedAt: activeSession.updatedAt,
+        },
       });
     }
 
-    // 저장된 세션에서 찾기
-    const persistedSession = await sessionManager.getPersistedSession(sessionId);
-    if (persistedSession && persistedSession.projectId === projectId) {
-      return NextResponse.json({
-        type: 'persisted',
-        session: persistedSession,
-      });
-    }
+    // Check persisted sessions in database
+    const session = await prisma.chatSession.findFirst({
+      where: {
+        id: sessionId,
+        projectId,
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+        nodeExecutions: {
+          orderBy: { startedAt: 'asc' },
+        },
+      },
+    });
 
-    return NextResponse.json(
-      { error: 'Session not found' },
-      { status: 404 }
-    );
-  } catch (error) {
-    console.error('Failed to fetch session:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch session' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE: 세션 삭제 (활성 세션만)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const { projectId, sessionId } = await params;
-    const sessionManager = getSessionManager();
-
-    const session = await sessionManager.get(sessionId);
     if (!session) {
       return NextResponse.json(
-        { error: 'Active session not found' },
+        { error: 'Session not found' },
         { status: 404 }
       );
     }
 
-    if (session.projectId !== projectId) {
-      return NextResponse.json(
-        { error: 'Session does not belong to this project' },
-        { status: 403 }
-      );
-    }
-
-    await sessionManager.delete(sessionId);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      type: 'persisted',
+      session: {
+        id: session.id,
+        projectId: session.projectId,
+        flowId: session.flowId,
+        channel: session.channel,
+        status: session.status,
+        currentNodeId: session.currentNodeId,
+        summary: session.summary,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        messages: session.messages.map(m => ({
+          id: m.id,
+          direction: m.direction,
+          content: m.content,
+          contentType: m.contentType,
+          createdAt: m.createdAt,
+        })),
+        nodeExecutions: session.nodeExecutions.map(e => ({
+          id: e.id,
+          nodeId: e.nodeId,
+          nodeType: e.nodeType,
+          turnNumber: e.turnNumber,
+          startedAt: e.startedAt,
+          endedAt: e.endedAt,
+          status: e.status,
+          outputSnapshot: e.outputSnapshot,
+          errorDetail: e.errorDetail,
+        })),
+      },
+    });
   } catch (error) {
-    console.error('Failed to delete session:', error);
+    console.error('Failed to fetch session detail:', error);
     return NextResponse.json(
-      { error: 'Failed to delete session' },
+      { error: 'Failed to fetch session detail' },
       { status: 500 }
     );
   }

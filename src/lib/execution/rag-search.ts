@@ -6,7 +6,28 @@
 
 import { getLLMService } from '@/lib/llm';
 import type { RAGSearchNodeData } from '@/types/flow-nodes';
-import { searchSimilarChunks, type SearchResult } from '@/lib/document-processor/vector-search';
+
+// Dynamic import for server-side only vector search
+// This prevents Prisma from being bundled into client code
+let searchSimilarChunks: ((query: string, options?: {
+  documentIds?: string[];
+  limit?: number;
+  minScore?: number;
+}) => Promise<Array<{
+  documentId: string;
+  documentTitle: string;
+  content: string;
+  score: number;
+}>>) | null = null;
+
+// Try to load vector search only on server side
+if (typeof window === 'undefined') {
+  import('@/lib/document-processor/vector-search').then((module) => {
+    searchSimilarChunks = module.searchSimilarChunks;
+  }).catch(() => {
+    // Vector search not available
+  });
+}
 
 // -----------------------------------------------------------------------------
 // Types
@@ -42,8 +63,8 @@ export async function executeRAGSearch(
   let sources: RAGSource[] = [];
   let context = documentContext;
 
-  // 벡터 검색 수행 (documentContext가 없는 경우)
-  if (!context && config.documentIds && config.documentIds.length > 0) {
+  // 벡터 검색 수행 (documentContext가 없는 경우, 서버 사이드에서만)
+  if (!context && config.documentIds && config.documentIds.length > 0 && searchSimilarChunks) {
     try {
       const searchResults = await searchSimilarChunks(query, {
         documentIds: config.documentIds,
@@ -51,7 +72,7 @@ export async function executeRAGSearch(
         minScore: config.minScore || 0.5,
       });
 
-      sources = searchResults.map((r: SearchResult) => ({
+      sources = searchResults.map((r) => ({
         documentId: r.documentId,
         documentTitle: r.documentTitle,
         snippet: r.content.slice(0, 200) + (r.content.length > 200 ? '...' : ''),

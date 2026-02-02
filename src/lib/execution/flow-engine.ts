@@ -19,7 +19,12 @@ import {
   MAX_TOTAL_NODES_PER_TURN,
 } from '@/types/session';
 import { getNodeExecutor } from './node-executor';
-import type { SessionManager } from '@/lib/session';
+
+// SessionManager type - only used for optional server-side persistence
+// The actual class should only be imported in server code
+interface SessionManager {
+  endSession(sessionId: string, summary?: string): Promise<void>;
+}
 
 // -----------------------------------------------------------------------------
 // Types

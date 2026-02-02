@@ -1,35 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionManager } from '@/lib/session';
+import { prisma } from '@/lib/prisma';
+import { sessionManager } from '@/lib/session/session-manager';
 
-type RouteParams = {
-  params: Promise<{ projectId: string }>;
-};
-
-// GET: 프로젝트의 세션 이력 조회
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET /api/projects/:projectId/sessions - List sessions
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectId: string }> }
+) {
   try {
     const { projectId } = await params;
-    const searchParams = request.nextUrl.searchParams;
 
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-    const status = searchParams.get('status') || undefined;
-
-    const sessionManager = getSessionManager();
-
-    // 저장된 세션 이력 조회
-    const sessions = await sessionManager.getSessionHistory(projectId, {
-      limit,
-      offset,
-      status,
+    // Get persisted sessions from database
+    const sessions = await prisma.chatSession.findMany({
+      where: { projectId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: {
+          select: { messages: true, nodeExecutions: true },
+        },
+      },
+      orderBy: { startedAt: 'desc' },
+      take: 50,
     });
 
-    // 현재 활성 세션도 포함
-    const activeSessions = await sessionManager.listByProject(projectId);
+    // Get active sessions from memory
+    const activeSessions = sessionManager.getActiveSessionsByProject(projectId);
 
     return NextResponse.json({
-      sessions,
-      activeSessions: activeSessions.map((s) => ({
+      sessions: sessions.map(s => ({
+        id: s.id,
+        projectId: s.projectId,
+        flowId: s.flowId,
+        channel: s.channel,
+        status: s.status,
+        currentNodeId: s.currentNodeId,
+        summary: s.summary,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        messages: s.messages.map(m => ({
+          id: m.id,
+          direction: m.direction,
+          content: m.content,
+          contentType: m.contentType,
+          createdAt: m.createdAt,
+        })),
+        messageCount: s._count.messages,
+        executionCount: s._count.nodeExecutions,
+      })),
+      activeSessions: activeSessions.map(s => ({
         id: s.id,
         flowId: s.flowId,
         status: s.status,
@@ -37,9 +57,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         messageCount: s.messages.length,
         startedAt: s.createdAt,
       })),
-      total: sessions.length,
-      limit,
-      offset,
     });
   } catch (error) {
     console.error('Failed to fetch sessions:', error);

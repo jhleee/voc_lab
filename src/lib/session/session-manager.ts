@@ -134,6 +134,10 @@ export class SessionManager implements ExtendedSessionStore {
     return this.store.getActiveSessions();
   }
 
+  getActiveSessionsByProject(projectId: string): Session[] {
+    return this.store.getActiveSessions().filter(s => s.projectId === projectId);
+  }
+
   clearStore(): void {
     this.store.clear();
   }
@@ -156,3 +160,6 @@ export function getSessionManager(): SessionManager {
 export function getSessionStore(): SessionStore {
   return getSessionManager();
 }
+
+// Singleton instance for direct import
+export const sessionManager = getSessionManager();

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
-import { GitBranch, FileText, MessageSquare } from 'lucide-react';
+import { GitBranch, FileText, MessageSquare, History } from 'lucide-react';
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -29,6 +29,12 @@ const menuItems = [
     icon: MessageSquare,
     href: 'prompt',
     description: '시스템 프롬프트 편집',
+  },
+  {
+    title: 'Sessions',
+    icon: History,
+    href: 'sessions',
+    description: '대화 기록 조회',
   },
 ];
 
