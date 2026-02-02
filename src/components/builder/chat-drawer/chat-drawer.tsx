@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { X, RotateCcw, AlertCircle } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -10,75 +10,134 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ChatInput } from './chat-input';
 import { useChatDrawer } from '@/hooks/use-chat-drawer';
-import { mockChatMessages } from '@/lib/mock-data';
-import type { ChatMessage } from '@/types';
+import { useFlowStore } from '@/hooks/use-flow-store';
+import { useFlowExecution } from '@/hooks/use-flow-execution';
+import type { FlowDefinition } from '@/lib/execution/flow-engine';
 import { cn } from '@/lib/utils';
 
 export function ChatDrawer() {
   const { isOpen, close } = useChatDrawer();
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages);
-  const [isLoading, setIsLoading] = useState(false);
+  const { nodes, edges, flowId, projectId } = useFlowStore();
+  const {
+    session,
+    messages,
+    isRunning,
+    isLoading,
+    error,
+    startSession,
+    sendMessage,
+    stopSession,
+  } = useFlowExecution();
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Start session when drawer opens
+  useEffect(() => {
+    if (isOpen && !session && flowId && projectId && nodes.length > 0) {
+      const flow: FlowDefinition = {
+        id: flowId,
+        nodes,
+        edges,
+      };
+      startSession(flow, projectId);
+    }
+  }, [isOpen, session, flowId, projectId, nodes, edges, startSession]);
 
   const handleSend = async (content: string) => {
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
+    await sendMessage(content);
+  };
 
-    // TODO: Implement actual chat API call
-    // Simulating response delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const handleRestart = () => {
+    stopSession();
+    if (flowId && projectId && nodes.length > 0) {
+      const flow: FlowDefinition = {
+        id: flowId,
+        nodes,
+        edges,
+      };
+      startSession(flow, projectId);
+    }
+  };
 
-    // Add mock assistant response
-    const assistantMessage: ChatMessage = {
-      id: `msg-${Date.now() + 1}`,
-      role: 'assistant',
-      content: `"${content}"에 대해 답변드리겠습니다. 이것은 테스트 응답입니다.`,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsLoading(false);
+  const handleClose = () => {
+    stopSession();
+    close();
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0">
         <SheetHeader className="px-4 py-3 border-b">
           <div className="flex items-center justify-between">
-            <SheetTitle>챗봇 테스트</SheetTitle>
-            <Button variant="ghost" size="icon" onClick={close}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <SheetTitle>챗봇 테스트</SheetTitle>
+              {session && (
+                <Badge variant={isRunning ? 'default' : 'secondary'}>
+                  {isRunning ? '실행 중' : '종료됨'}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRestart}
+                title="다시 시작"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </SheetHeader>
-        <ScrollArea className="flex-1 p-4">
+
+        {error && (
+          <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </div>
+          </div>
+        )}
+
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           <div className="space-y-4">
+            {messages.length === 0 && !isLoading && (
+              <div className="text-center text-muted-foreground text-sm py-8">
+                플로우가 시작되었습니다. 메시지를 입력하세요.
+              </div>
+            )}
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
                   'flex',
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                  message.direction === 'inbound' ? 'justify-end' : 'justify-start'
                 )}
               >
                 <div
                   className={cn(
                     'max-w-[80%] rounded-lg px-4 py-2',
-                    message.role === 'user'
+                    message.direction === 'inbound'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   )}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
-                    {new Date(message.timestamp).toLocaleTimeString('ko-KR', {
+                    {new Date(message.createdAt).toLocaleTimeString('ko-KR', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
@@ -89,13 +148,20 @@ export function ChatDrawer() {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg px-4 py-2">
-                  <p className="text-sm text-muted-foreground">입력 중...</p>
+                  <div className="flex items-center gap-2">
+                    <span className="animate-pulse">●</span>
+                    <span className="text-sm text-muted-foreground">처리 중...</span>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </ScrollArea>
-        <ChatInput onSend={handleSend} disabled={isLoading} />
+
+        <ChatInput
+          onSend={handleSend}
+          disabled={isLoading || !isRunning}
+        />
       </SheetContent>
     </Sheet>
   );
