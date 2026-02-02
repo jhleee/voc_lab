@@ -6,12 +6,12 @@ import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import type { IntentClassifierNodeData, FlowNode } from '@/types/flow-nodes';
 
-function IntentClassifierNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function IntentClassifierNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as IntentClassifierNodeData;
   const intents = nodeData.intents || [];
 
   return (
-    <BaseNode data={nodeData} selected={selected} className="min-w-[220px]">
+    <BaseNode id={id} data={nodeData} selected={selected} className="min-w-[220px]">
       <div className="space-y-2">
         {intents.length > 0 ? (
           <div className="flex flex-wrap gap-1">

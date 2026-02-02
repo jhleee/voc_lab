@@ -10,11 +10,11 @@ const RESTART_LABELS: Record<ErrorFallbackNodeData['restartOption'], string> = {
   failed_node: '실패한 노드',
 };
 
-function ErrorFallbackNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function ErrorFallbackNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as ErrorFallbackNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected}>
+    <BaseNode id={id} data={nodeData} selected={selected}>
       <div className="space-y-1">
         {nodeData.fallbackMessage && (
           <p className="text-xs text-muted-foreground line-clamp-2">

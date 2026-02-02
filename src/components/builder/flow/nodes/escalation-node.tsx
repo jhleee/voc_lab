@@ -5,11 +5,11 @@ import type { NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import type { EscalationNodeData, FlowNode } from '@/types/flow-nodes';
 
-function EscalationNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function EscalationNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as EscalationNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected}>
+    <BaseNode id={id} data={nodeData} selected={selected}>
       <div className="text-xs text-muted-foreground">
         {nodeData.summaryTemplate ? (
           <p className="line-clamp-2">요약 템플릿 설정됨</p>

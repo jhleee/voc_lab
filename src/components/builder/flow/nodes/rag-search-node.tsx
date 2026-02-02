@@ -6,11 +6,11 @@ import { Database } from 'lucide-react';
 import { BaseNode } from './base-node';
 import type { RAGSearchNodeData, FlowNode } from '@/types/flow-nodes';
 
-function RAGSearchNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function RAGSearchNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as RAGSearchNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected}>
+    <BaseNode id={id} data={nodeData} selected={selected}>
       <div className="space-y-1 text-xs text-muted-foreground">
         {nodeData.documentSetId ? (
           <div className="flex items-center gap-1">

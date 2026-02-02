@@ -5,12 +5,12 @@ import type { NodeProps } from '@xyflow/react';
 import { BaseNode } from './base-node';
 import type { ConditionNodeData, FlowNode } from '@/types/flow-nodes';
 
-function ConditionNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function ConditionNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as ConditionNodeData;
   const conditions = nodeData.conditions || [];
 
   return (
-    <BaseNode data={nodeData} selected={selected} className="min-w-[200px]">
+    <BaseNode id={id} data={nodeData} selected={selected} className="min-w-[200px]">
       <div className="space-y-1 text-xs text-muted-foreground">
         {conditions.length > 0 ? (
           <>

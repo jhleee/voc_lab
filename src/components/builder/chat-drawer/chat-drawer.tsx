@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { X, RotateCcw, AlertCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, RotateCcw, AlertCircle, Bug } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChatInput } from './chat-input';
+import { ExecutionDebugPanel } from './execution-debug-panel';
 import { useChatDrawer } from '@/hooks/use-chat-drawer';
 import { useFlowStore } from '@/hooks/use-flow-store';
 import { useFlowExecution } from '@/hooks/use-flow-execution';
@@ -20,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 export function ChatDrawer() {
   const { isOpen, close } = useChatDrawer();
-  const { nodes, edges, flowId, projectId } = useFlowStore();
+  const { nodes, edges, flowId, projectId, setCurrentExecutingNode } = useFlowStore();
   const {
     session,
     messages,
@@ -33,6 +34,7 @@ export function ChatDrawer() {
   } = useFlowExecution();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -40,6 +42,15 @@ export function ChatDrawer() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Highlight current executing node in the flow canvas
+  useEffect(() => {
+    if (session?.currentNodeId && setCurrentExecutingNode) {
+      setCurrentExecutingNode(session.currentNodeId);
+    } else if (setCurrentExecutingNode) {
+      setCurrentExecutingNode(null);
+    }
+  }, [session?.currentNodeId, setCurrentExecutingNode]);
 
   // Start session when drawer opens
   useEffect(() => {
@@ -88,6 +99,15 @@ export function ChatDrawer() {
               )}
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDebugPanelOpen(!debugPanelOpen)}
+                title="디버그 패널"
+                className={cn(debugPanelOpen && 'bg-muted')}
+              >
+                <Bug className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -157,6 +177,13 @@ export function ChatDrawer() {
             )}
           </div>
         </ScrollArea>
+
+        {/* Debug Panel */}
+        <ExecutionDebugPanel
+          session={session}
+          isExpanded={debugPanelOpen}
+          onToggle={() => setDebugPanelOpen(!debugPanelOpen)}
+        />
 
         <ChatInput
           onSend={handleSend}

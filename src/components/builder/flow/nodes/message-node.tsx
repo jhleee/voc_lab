@@ -6,13 +6,13 @@ import { Clock } from 'lucide-react';
 import { BaseNode } from './base-node';
 import type { MessageNodeData, FlowNode } from '@/types/flow-nodes';
 
-function MessageNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function MessageNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as MessageNodeData;
   const messageCount = nodeData.messages?.length || 0;
   const firstMessage = nodeData.messages?.[0];
 
   return (
-    <BaseNode data={nodeData} selected={selected}>
+    <BaseNode id={id} data={nodeData} selected={selected}>
       <div className="space-y-1">
         {firstMessage?.content && (
           <p className="text-xs text-muted-foreground line-clamp-2">

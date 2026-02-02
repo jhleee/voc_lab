@@ -6,11 +6,11 @@ import { BaseNode } from './base-node';
 import { Badge } from '@/components/ui/badge';
 import type { APIConnectorNodeData, FlowNode } from '@/types/flow-nodes';
 
-function APIConnectorNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function APIConnectorNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as APIConnectorNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected} className="min-w-[200px]">
+    <BaseNode id={id} data={nodeData} selected={selected} className="min-w-[200px]">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs font-mono">

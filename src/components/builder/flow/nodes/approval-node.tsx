@@ -6,11 +6,11 @@ import { Clock } from 'lucide-react';
 import { BaseNode } from './base-node';
 import type { ApprovalNodeData, FlowNode } from '@/types/flow-nodes';
 
-function ApprovalNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function ApprovalNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as ApprovalNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected} className="min-w-[200px]">
+    <BaseNode id={id} data={nodeData} selected={selected} className="min-w-[200px]">
       <div className="space-y-1 text-xs text-muted-foreground">
         {nodeData.approvalRequestInfo ? (
           <p className="line-clamp-2">{nodeData.approvalRequestInfo}</p>

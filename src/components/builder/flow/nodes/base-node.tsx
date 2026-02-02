@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNodeMetadata, CATEGORY_COLORS } from '@/lib/node-registry';
-import type { FlowNodeData, NodeHandleConfig, FlowNodeType } from '@/types/flow-nodes';
+import type { FlowNodeData, FlowNodeType } from '@/types/flow-nodes';
+import { useFlowStore } from '@/hooks/use-flow-store';
 
 // -----------------------------------------------------------------------------
 // Icon Map
@@ -58,8 +59,10 @@ const POSITION_MAP: Record<string, Position> = {
 // -----------------------------------------------------------------------------
 
 interface BaseNodeProps {
+  id?: string;
   data: FlowNodeData;
   selected?: boolean;
+  isExecuting?: boolean;
   children?: ReactNode;
   className?: string;
 }
@@ -68,7 +71,9 @@ interface BaseNodeProps {
 // Base Node Component
 // -----------------------------------------------------------------------------
 
-function BaseNodeComponent({ data, selected, children, className }: BaseNodeProps) {
+function BaseNodeComponent({ id, data, selected, isExecuting: isExecutingProp, children, className }: BaseNodeProps) {
+  const currentExecutingNodeId = useFlowStore((state) => state.currentExecutingNodeId);
+  const isExecuting = isExecutingProp ?? (id ? currentExecutingNodeId === id : false);
   const metadata = getNodeMetadata(data.type as FlowNodeType);
 
   if (!metadata) {
@@ -90,9 +95,16 @@ function BaseNodeComponent({ data, selected, children, className }: BaseNodeProp
         categoryColors.bg,
         categoryColors.border,
         selected && 'ring-2 ring-primary ring-offset-2',
+        isExecuting && 'ring-2 ring-green-500 ring-offset-2 animate-pulse',
         className
       )}
     >
+      {/* Executing Indicator */}
+      {isExecuting && (
+        <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+          <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+        </div>
+      )}
       {/* Render Handles */}
       {handles.map((handle) => (
         <Handle

@@ -12,11 +12,11 @@ const TRIGGER_LABELS: Record<StartNodeData['triggerType'], string> = {
   email_received: '이메일 수신',
 };
 
-function StartNodeComponent({ data, selected }: NodeProps<FlowNode>) {
+function StartNodeComponent({ id, data, selected }: NodeProps<FlowNode>) {
   const nodeData = data as StartNodeData;
 
   return (
-    <BaseNode data={nodeData} selected={selected}>
+    <BaseNode id={id} data={nodeData} selected={selected}>
       <div className="text-xs text-muted-foreground">
         트리거: {TRIGGER_LABELS[nodeData.triggerType]}
       </div>

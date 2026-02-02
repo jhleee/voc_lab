@@ -59,6 +59,7 @@ export interface FlowState {
   isLoading: boolean;
   lastSaved: Date | null;
   saveError: string | null;
+  currentExecutingNodeId: string | null;
 
   // ---------------------------------------------------------------------------
   // Flow Actions
@@ -95,6 +96,11 @@ export interface FlowState {
   // ---------------------------------------------------------------------------
   selectNode: (nodeId: string | null) => void;
   getSelectedNode: () => Node<FlowNodeData> | null;
+
+  // ---------------------------------------------------------------------------
+  // Execution State
+  // ---------------------------------------------------------------------------
+  setCurrentExecutingNode: (nodeId: string | null) => void;
 
   // ---------------------------------------------------------------------------
   // Variable Actions
@@ -157,6 +163,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   isLoading: false,
   lastSaved: null,
   saveError: null,
+  currentExecutingNodeId: null,
 
   // ---------------------------------------------------------------------------
   // Flow Actions
@@ -324,6 +331,13 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const state = get();
     if (!state.selectedNodeId) return null;
     return state.nodes.find((node) => node.id === state.selectedNodeId) || null;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Execution State
+  // ---------------------------------------------------------------------------
+  setCurrentExecutingNode: (nodeId) => {
+    set({ currentExecutingNodeId: nodeId });
   },
 
   // ---------------------------------------------------------------------------
@@ -525,6 +539,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       isLoading: false,
       lastSaved: null,
       saveError: null,
+      currentExecutingNodeId: null,
     });
   },
 }));
