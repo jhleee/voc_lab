@@ -119,10 +119,11 @@ export interface FlowState {
   getNodesByType: (type: FlowNodeType) => Node<FlowNodeData>[];
 
   // ---------------------------------------------------------------------------
-  // Save Actions
+  // Save/Load Actions
   // ---------------------------------------------------------------------------
   markDirty: () => void;
   saveFlow: () => Promise<void>;
+  loadFlow: (projectId: string, flowId: string) => Promise<void>;
 
   // ---------------------------------------------------------------------------
   // Cleanup
@@ -465,6 +466,39 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     } catch (error) {
       set({
         isSaving: false,
+        saveError: (error as Error).message,
+      });
+      throw error;
+    }
+  },
+
+  loadFlow: async (projectId: string, flowId: string) => {
+    set({ isLoading: true, saveError: null });
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/flows/${flowId}`
+      );
+
+      if (!response.ok) {
+        throw new Error('플로우를 불러오는데 실패했습니다.');
+      }
+
+      const flow = await response.json();
+
+      // initializeFlow 호출
+      get().initializeFlow({
+        projectId,
+        flowId: flow.id,
+        flowName: flow.name,
+        nodes: flow.nodes,
+        edges: flow.edges,
+      });
+
+      set({ isLoading: false });
+    } catch (error) {
+      set({
+        isLoading: false,
         saveError: (error as Error).message,
       });
       throw error;

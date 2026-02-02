@@ -42,34 +42,54 @@ model Document {
 }
 
 model Flow {
-  id        String     @id @default(cuid())
-  name      String
-  projectId String
-  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  nodes     FlowNode[]
-  edges     FlowEdge[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  version     Int        @default(1)
+  isPublished Boolean    @default(false)
+  variables   Json?      // FlowVariables (session defaults)
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodes       FlowNode[]
+  edges       FlowEdge[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([projectId])
 }
 
 model FlowNode {
-  id       String  @id @default(cuid())
-  type     String  // 'start' | 'message' | 'condition' | 'action'
-  posX     Float
-  posY     Float
-  label    String
-  content  String?
-  flowId   String
-  flow     Flow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  nodeId     String   // ReactFlow node ID (e.g., "start-1", "message-abc123")
+  type       String   // FlowNodeType
+  posX       Float
+  posY       Float
+  data       Json     // FlowNodeData (type-specific node configuration)
+  flowId     String
+  flow       Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([flowId, nodeId])
+  @@index([flowId])
 }
 
 model FlowEdge {
-  id     String  @id @default(cuid())
-  source String
-  target String
-  label  String?
-  flowId String
-  flow   Flow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  edgeId       String   // ReactFlow edge ID
+  source       String   // Source node ID
+  target       String   // Target node ID
+  sourceHandle String?  // Source handle ID (e.g., "out", "success", "condition-0")
+  targetHandle String?  // Target handle ID (e.g., "in")
+  label        String?
+  animated     Boolean  @default(false)
+  flowId       String
+  flow         Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([flowId, edgeId])
+  @@index([flowId])
 }
 
 model PromptCategory {

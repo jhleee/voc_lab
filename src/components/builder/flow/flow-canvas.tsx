@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -58,42 +58,78 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 // Flow Canvas Component
 // -----------------------------------------------------------------------------
 
-export function FlowCanvas() {
+interface FlowCanvasProps {
+  projectId: string;
+}
+
+export function FlowCanvas({ projectId }: FlowCanvasProps) {
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Flow store state and actions
   const {
     nodes,
     edges,
-    selectedNodeId,
+    flowId,
+    isLoading,
     setNodes,
     setEdges,
     addNode: storeAddNode,
     selectNode,
     initializeFlow,
+    loadFlow,
   } = useFlowStore();
 
   const { open: openSettings } = useNodeSettings();
 
-  // Initialize flow on mount (if no nodes exist)
+  // Initialize flow on mount
   useEffect(() => {
-    if (nodes.length === 0) {
-      initializeFlow({
-        projectId: 'default-project',
-        flowId: 'default-flow',
-        flowName: '새 플로우',
-        nodes: [{
-          id: 'start-1',
-          type: 'start',
-          position: { x: 250, y: 50 },
-          data: {
+    const initFlow = async () => {
+      if (isInitialized) return;
+
+      try {
+        // 프로젝트의 플로우 목록 조회
+        const response = await fetch(`/api/projects/${projectId}/flows`);
+        const flows = await response.json();
+
+        if (flows.length > 0) {
+          // 첫 번째 플로우 로드
+          await loadFlow(projectId, flows[0].id);
+        } else {
+          // 새 플로우 생성
+          const createResponse = await fetch(`/api/projects/${projectId}/flows`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: '새 플로우' }),
+          });
+          const newFlow = await createResponse.json();
+          await loadFlow(projectId, newFlow.id);
+        }
+      } catch (error) {
+        console.error('Failed to initialize flow:', error);
+        // 폴백: 로컬 초기화
+        initializeFlow({
+          projectId,
+          flowId: 'local-flow',
+          flowName: '새 플로우',
+          nodes: [{
+            id: 'start-1',
             type: 'start',
-            label: '시작',
-            triggerType: 'user_message',
-          } as FlowNodeData,
-        }],
-        edges: [],
-      });
-    }
-  }, [initializeFlow, nodes.length]);
+            position: { x: 250, y: 50 },
+            data: {
+              type: 'start',
+              label: '시작',
+              triggerType: 'user_message',
+            } as FlowNodeData,
+          }],
+          edges: [],
+        });
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    initFlow();
+  }, [projectId, isInitialized, loadFlow, initializeFlow]);
 
   // Handle node changes (drag, select, remove)
   const onNodesChange = useCallback(
@@ -141,6 +177,18 @@ export function FlowCanvas() {
   }, [selectNode]);
 
   const categories = getNodesByCategory();
+
+  // Loading state
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted/20">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">플로우 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full">

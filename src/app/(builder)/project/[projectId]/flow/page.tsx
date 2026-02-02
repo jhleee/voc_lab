@@ -1,11 +1,18 @@
 'use client';
 
+import { use } from 'react';
 import { FlowCanvas } from '@/components/builder/flow/flow-canvas';
 
-export default function FlowPage() {
+interface FlowPageProps {
+  params: Promise<{ projectId: string }>;
+}
+
+export default function FlowPage({ params }: FlowPageProps) {
+  const { projectId } = use(params);
+
   return (
     <div className="h-[calc(100vh-3.5rem)]">
-      <FlowCanvas />
+      <FlowCanvas projectId={projectId} />
     </div>
   );
 }
