@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { nodeTypes } from './nodes';
 import { NodeSettingsPanel } from './node-settings-panel';
+import { ValidationPanel } from './validation-panel';
 import { useNodeSettings } from '@/hooks/use-node-settings';
 import { useFlowStore } from '@/hooks/use-flow-store';
 import {
@@ -285,6 +286,11 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
               <span className="text-green-500">✓ 저장됨</span>
             )}
           </div>
+        </Panel>
+
+        {/* Validation Panel */}
+        <Panel position="bottom-left" className="m-4 w-80">
+          <ValidationPanel />
         </Panel>
       </ReactFlow>
     </div>
