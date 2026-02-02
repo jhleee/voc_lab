@@ -11,7 +11,7 @@ import {
   BackgroundVariant,
   Panel,
 } from '@xyflow/react';
-import type { Connection, NodeChange, EdgeChange, Node } from '@xyflow/react';
+import type { Connection, NodeChange, EdgeChange, Node, Edge, IsValidConnection } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Plus } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
@@ -32,6 +32,7 @@ import {
   getNodesByCategory,
   CATEGORY_LABELS,
 } from '@/lib/node-registry';
+import { isValidConnection, validateConnection } from '@/lib/edge-validator';
 import type { FlowNodeType, FlowNodeData } from '@/types/flow-nodes';
 
 // -----------------------------------------------------------------------------
@@ -150,10 +151,31 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     [edges, setEdges]
   );
 
-  // Handle new connections
+  // Handle new connections with validation
   const onConnect = useCallback(
-    (params: Connection) => setEdges(addEdge(params, edges)),
-    [edges, setEdges]
+    (params: Connection) => {
+      const validation = validateConnection(params, nodes, edges);
+      if (validation.valid) {
+        setEdges(addEdge(params, edges));
+      }
+      // 유효하지 않은 연결은 무시됨
+    },
+    [nodes, edges, setEdges]
+  );
+
+  // Connection validation for visual feedback
+  const checkIsValidConnection: IsValidConnection<Edge> = useCallback(
+    (connection) => {
+      // ReactFlow may pass either Edge or Connection
+      const conn: Connection = {
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle ?? null,
+        targetHandle: connection.targetHandle ?? null,
+      };
+      return isValidConnection(conn, nodes, edges);
+    },
+    [nodes, edges]
   );
 
   // Add new node
@@ -205,6 +227,7 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
+        isValidConnection={checkIsValidConnection}
         fitView
         className="bg-muted/20"
       >
