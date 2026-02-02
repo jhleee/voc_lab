@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { ProjectDashboard } from '@/components/builder/dashboard/project-dashboard';
 
 interface ProjectPageProps {
   params: Promise<{ projectId: string }>;
@@ -6,5 +6,5 @@ interface ProjectPageProps {
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
-  redirect(`/project/${projectId}/flow`);
+  return <ProjectDashboard projectId={projectId} />;
 }
