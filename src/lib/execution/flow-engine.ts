@@ -18,7 +18,8 @@ import {
   MAX_NODE_VISITS_PER_TURN,
   MAX_TOTAL_NODES_PER_TURN,
 } from '@/types/session';
-import { getNodeExecutor, isNodeBlocking } from './node-executor';
+import { getNodeExecutor } from './node-executor';
+import type { SessionManager } from '@/lib/session';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -55,10 +56,15 @@ export interface TriggerInput {
 export class FlowEngine {
   private flow: FlowDefinition;
   private sessionStore: SessionStore;
+  private sessionManager?: SessionManager;
 
   constructor(flow: FlowDefinition, sessionStore: SessionStore) {
     this.flow = flow;
     this.sessionStore = sessionStore;
+    // Check if the store is a SessionManager for extended functionality
+    if ('endSession' in sessionStore) {
+      this.sessionManager = sessionStore as unknown as SessionManager;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -241,6 +247,14 @@ export class FlowEngine {
             status: 'COMPLETED',
             currentNodeId: null,
           });
+          // Persist session if manager available
+          if (this.sessionManager) {
+            try {
+              await this.sessionManager.endSession(sessionId);
+            } catch (e) {
+              console.error('Failed to persist session:', e);
+            }
+          }
           return {
             success: true,
             messages: collectedMessages,
@@ -287,6 +301,14 @@ export class FlowEngine {
               status: 'COMPLETED',
               currentNodeId: null,
             });
+            // Persist session if manager available
+            if (this.sessionManager) {
+              try {
+                await this.sessionManager.endSession(sessionId);
+              } catch (e) {
+                console.error('Failed to persist session:', e);
+              }
+            }
             return {
               success: true,
               messages: collectedMessages,

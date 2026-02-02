@@ -27,6 +27,7 @@ model Project {
   documents        Document[]
   flows            Flow[]
   promptCategories PromptCategory[]
+  chatSessions     ChatSession[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 }
@@ -73,18 +74,19 @@ model DocumentChunk {
 }
 
 model Flow {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  version     Int        @default(1)
-  isPublished Boolean    @default(false)
-  variables   Json?      // FlowVariables (session defaults)
-  projectId   String
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  nodes       FlowNode[]
-  edges       FlowEdge[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  version      Int           @default(1)
+  isPublished  Boolean       @default(false)
+  variables    Json?         // FlowVariables (session defaults)
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodes        FlowNode[]
+  edges        FlowEdge[]
+  chatSessions ChatSession[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([projectId])
 }
@@ -153,4 +155,86 @@ model PromptVersion {
   promptId  String
   prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+// =============================================================================
+// Session & Conversation Models
+// =============================================================================
+
+model ChatSession {
+  id                String            @id @default(cuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  flowId            String
+  flow              Flow              @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  channel           String            @default("chat") // chat | email | api
+  status            SessionStatus     @default(INIT)
+  currentNodeId     String?
+  variables         Json?             // FlowVariables snapshot at end
+  checkpoint        Json?             // SessionCheckpoint
+  summary           String?           @db.Text // AI-generated summary
+  startedAt         DateTime          @default(now())
+  endedAt           DateTime?
+  messages          ChatMessage[]
+  nodeExecutions    NodeExecution[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([projectId])
+  @@index([flowId])
+  @@index([status])
+}
+
+enum SessionStatus {
+  INIT            // 초기화됨
+  ACTIVE          // 실행 중
+  WAITING_INPUT   // 사용자 입력 대기
+  WAITING_HUMAN   // 상담원 대기 (HITL)
+  COMPLETED       // 정상 종료
+  TIMEOUT         // 타임아웃
+  ERROR           // 에러 발생
+}
+
+model ChatMessage {
+  id          String          @id @default(cuid())
+  sessionId   String
+  session     ChatSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  direction   MessageDirection
+  content     String          @db.Text
+  contentType String          @default("text") // text | image | button | card | carousel | link
+  metadata    Json?           // Additional metadata
+  createdAt   DateTime        @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+enum MessageDirection {
+  inbound   // User message
+  outbound  // Bot message
+}
+
+model NodeExecution {
+  id            String        @id @default(cuid())
+  sessionId     String
+  session       ChatSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  nodeId        String        // ReactFlow node ID
+  nodeType      String        // Node type (start, message, etc.)
+  turnNumber    Int           // Which turn this execution belongs to
+  inputSnapshot Json?         // Variables at node entry
+  outputSnapshot Json?        // Node execution result
+  status        ExecutionStatus @default(RUNNING)
+  errorDetail   String?       @db.Text
+  startedAt     DateTime      @default(now())
+  endedAt       DateTime?
+
+  @@index([sessionId])
+  @@index([nodeId])
+  @@index([startedAt])
+}
+
+enum ExecutionStatus {
+  RUNNING
+  SUCCESS
+  ERROR
 }
