@@ -71,6 +71,9 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
     edges,
     flowId,
     isLoading,
+    isSaving,
+    isDirty,
+    lastSaved,
     setNodes,
     setEdges,
     addNode: storeAddNode,
@@ -244,10 +247,20 @@ export function FlowCanvas({ projectId }: FlowCanvasProps) {
 
         {/* Status Panel */}
         <Panel position="top-right" className="m-4">
-          <div className="bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border text-sm">
+          <div className="bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border text-sm flex items-center gap-3">
             <span className="text-muted-foreground">
               노드: {nodes.length} | 연결: {edges.length}
             </span>
+            <span className="text-muted-foreground">|</span>
+            {isSaving ? (
+              <span className="text-blue-500 flex items-center gap-1">
+                <span className="animate-pulse">●</span> 저장 중...
+              </span>
+            ) : isDirty ? (
+              <span className="text-orange-500">● 변경됨</span>
+            ) : (
+              <span className="text-green-500">✓ 저장됨</span>
+            )}
           </div>
         </Panel>
       </ReactFlow>
